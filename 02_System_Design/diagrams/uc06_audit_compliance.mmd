@@ -1,0 +1,91 @@
+graph LR
+    ADMIN["Admin / Security Officer"]
+    DEV["Developer"]
+    AUD_SVC["Audit Service (System)"]
+    GOV_ENG["Governance Engine"]
+
+    subgraph AUD_UC["Audit and Compliance Use Cases"]
+        direction TB
+
+        subgraph LOGS["Audit Log Management"]
+            E1(["View All Audit Logs"])
+            E2(["View Logs for Specific Task"])
+            E3(["Filter Logs by Date Range"])
+            E4(["Filter Logs by Agent ID"])
+            E5(["Filter Logs by Action Type"])
+            E6(["View Log Entity Details"])
+        end
+
+        subgraph ANOMALY["Anomaly Monitoring"]
+            E7(["View Detected Anomalies"])
+            E8(["View Anomaly Severity"])
+            E9(["View Anomaly Score Timeline"])
+            E10(["Acknowledge Anomaly Alert"])
+        end
+
+        subgraph REPORTS["Compliance Reporting"]
+            E11(["Generate Compliance Report"])
+            E12(["View Summary Statistics"])
+            E13(["Export Audit Report as JSON"])
+            E14(["View Task Decision Summary - approved / blocked / flagged"])
+            E15(["View Agent Risk Distribution"])
+        end
+
+        subgraph AUTO_LOG["Automated Logging - System Initiated"]
+            E16(["Log Task Submission"])
+            E17(["Log Governance Decision"])
+            E18(["Log Agent Status Change"])
+            E19(["Log User Authentication"])
+            E20(["Log Rule Creation / Change"])
+            E21(["Log Anomaly Detection Event"])
+        end
+
+        E1 -.->|"extend"| E3
+        E1 -.->|"extend"| E4
+        E1 -.->|"extend"| E5
+        E3 -.->|"include"| E6
+        E4 -.->|"include"| E6
+        E5 -.->|"include"| E6
+        E11 -.->|"include"| E14
+        E11 -.->|"include"| E15
+        E11 -.->|"include"| E12
+        E7 -.->|"extend"| E8
+        E7 -.->|"extend"| E9
+    end
+
+    ADMIN --> E1
+    ADMIN --> E2
+    ADMIN --> E3
+    ADMIN --> E4
+    ADMIN --> E5
+    ADMIN --> E6
+    ADMIN --> E7
+    ADMIN --> E8
+    ADMIN --> E9
+    ADMIN --> E10
+    ADMIN --> E11
+    ADMIN --> E12
+    ADMIN --> E13
+    ADMIN --> E14
+    ADMIN --> E15
+    DEV --> E2
+    DEV --> E6
+    AUD_SVC --> E16
+    AUD_SVC --> E17
+    AUD_SVC --> E18
+    AUD_SVC --> E19
+    AUD_SVC --> E20
+    AUD_SVC --> E21
+    GOV_ENG --> E17
+    GOV_ENG --> E21
+
+    style AUD_UC fill:#e0f2f1,stroke:#26a69a
+    style LOGS fill:#e8f5e9,stroke:#66bb6a
+    style ANOMALY fill:#fce4ec,stroke:#f06292
+    style REPORTS fill:#e3f2fd,stroke:#42a5f5
+    style AUTO_LOG fill:#fff8e1,stroke:#ffca28
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    class DEV,ADMIN human
+    class AUD_SVC,GOV_ENG system

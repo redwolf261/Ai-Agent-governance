@@ -1,0 +1,94 @@
+graph TB
+    subgraph Actors["ACTORS"]
+        DEV["Developer / User"]
+        ADMIN["Admin / Security Officer"]
+        HUMAN_REV["Human Reviewer"]
+        AI_AGENT["AI Agent (External)"]
+        GOV_ENGINE["Governance Engine (System)"]
+        ANOM_DET["ML Anomaly Detector (System)"]
+    end
+
+    subgraph AUTH["UC-A: Authentication"]
+        A1(["Register Account"])
+        A2(["Login / Obtain JWT"])
+        A3(["View Profile"])
+        A4(["Logout"])
+    end
+
+    subgraph AGT["UC-B: Agent Management"]
+        B1(["Register AI Agent"])
+        B2(["View Agents"])
+        B3(["Update Agent Config"])
+        B4(["Suspend / Activate Agent"])
+        B5(["Monitor Agent Trust Score"])
+    end
+
+    subgraph TASK["UC-C: Task Management"]
+        C1(["Submit Task"])
+        C2(["Start Task Execution"])
+        C3(["Complete / Fail Task"])
+        C4(["Approve Flagged Task"])
+        C5(["Reject Flagged Task"])
+        C6(["View Task History"])
+    end
+
+    subgraph GOV["UC-D: Governance Rules"]
+        D1(["Create Governance Rule"])
+        D2(["Update Rule"])
+        D3(["Delete Rule"])
+        D4(["Evaluate Task Against Rules"])
+        D5(["View Active Rules"])
+    end
+
+    subgraph AUD["UC-E: Audit and Compliance"]
+        E1(["View Audit Logs"])
+        E2(["Generate Compliance Report"])
+        E3(["View Anomaly Alerts"])
+        E4(["Filter Logs by Date / Type"])
+    end
+
+    subgraph DASH["UC-F: Dashboard and Monitoring"]
+        F1(["View System Statistics"])
+        F2(["View Activity Feed"])
+        F3(["View Risk Summary"])
+    end
+
+    subgraph ML["UC-G: ML Anomaly Detection"]
+        G1(["Detect Task Anomaly"])
+        G2(["Score Risk Level"])
+        G3(["Retrain Baseline Models"])
+        G4(["Extract Behavioral Features"])
+    end
+
+    subgraph ADV["UC-H: Advanced Governance"]
+        H1(["Check Boundary Violations"])
+        H2(["Check Goal Misalignment"])
+        H3(["Check Tool Chaining Abuse"])
+        H4(["Enforce Implicit Norms"])
+        H5(["Prevent Runaway Behavior"])
+        H6(["Enforce Security Boundaries"])
+    end
+
+    DEV --> A1 & A2 & A3 & A4
+    DEV --> B1 & B2 & B3 & B4
+    DEV --> C1 & C6
+    DEV --> F1 & F2 & F3
+
+    ADMIN --> D1 & D2 & D3 & D5
+    ADMIN --> E1 & E2 & E3 & E4
+    ADMIN --> B4 & B5
+    ADMIN --> G3
+
+    HUMAN_REV --> C4 & C5
+
+    AI_AGENT --> C2 & C3
+
+    GOV_ENGINE --> D4 & H1 & H2 & H3 & H4 & H5 & H6
+
+    ANOM_DET --> G1 & G2 & G4
+
+    classDef actor fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system_actor fill:#e8a838,stroke:#b37a20,color:#fff
+
+    class DEV,ADMIN,HUMAN_REV actor
+    class AI_AGENT,GOV_ENGINE,ANOM_DET system_actor

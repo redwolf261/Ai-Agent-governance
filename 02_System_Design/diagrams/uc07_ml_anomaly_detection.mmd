@@ -1,0 +1,107 @@
+graph LR
+    ADMIN["Admin"]
+    GOV_ENG["Governance Engine"]
+    ANOM_DET["ML Anomaly Detector (System)"]
+    AUD["Audit Service"]
+
+    subgraph ML_UC["ML Anomaly Detection Use Cases"]
+        direction TB
+
+        subgraph DETECT["Anomaly Detection Pipeline"]
+            G1(["Receive Task for Analysis"])
+            G2(["Extract 12 Behavioral Features"])
+            G3(["Normalize Features via Scaler"])
+            G4(["Run Isolation Forest Model"])
+            G5(["Run One-Class SVM Model"])
+            G6(["Ensemble Score Combination"])
+            G7(["Classify as Normal or Anomalous"])
+        end
+
+        subgraph FEATURES["Feature Engineering - 12 Features"]
+            G8(["Compute task_type_risk"])
+            G9(["Measure input_size_bytes"])
+            G10(["Flag is_sensitive_data"])
+            G11(["Check is_business_hours"])
+            G12(["Compute agent_task_count - rate over 1 hour"])
+            G13(["Compute agent_failed_rate"])
+            G14(["Measure execution_time_seconds"])
+            G15(["Compute cpu_usage"])
+            G16(["Compute memory_usage"])
+            G17(["Measure network_bytes_sent"])
+            G18(["Count error_count"])
+            G19(["Compute input_complexity"])
+        end
+
+        subgraph RISK["Risk Scoring"]
+            G20(["Assign Risk Level LOW"])
+            G21(["Assign Risk Level MEDIUM"])
+            G22(["Assign Risk Level HIGH"])
+            G23(["Assign Risk Level CRITICAL"])
+        end
+
+        subgraph MODEL_MGMT["Model Management"]
+            G24(["Train on Baseline Normal Samples"])
+            G25(["Persist Models as joblib"])
+            G26(["Retrain with New Labeled Data"])
+            G27(["Evaluate Model Accuracy"])
+            G28(["Load Pre-trained Models on Startup"])
+        end
+
+        G1 -.->|"include"| G2
+        G2 -.->|"include"| G3
+        G3 -.->|"include"| G4
+        G3 -.->|"include"| G5
+        G4 -.->|"include"| G6
+        G5 -.->|"include"| G6
+        G6 -.->|"include"| G7
+        G7 -.->|"extend"| G20
+        G7 -.->|"extend"| G21
+        G7 -.->|"extend"| G22
+        G7 -.->|"extend"| G23
+        G24 -.->|"include"| G25
+        G26 -.->|"include"| G27
+        G28 -.->|"extend"| G26
+    end
+
+    GOV_ENG --> G1
+    ANOM_DET --> G2
+    ANOM_DET --> G3
+    ANOM_DET --> G4
+    ANOM_DET --> G5
+    ANOM_DET --> G6
+    ANOM_DET --> G7
+    ANOM_DET --> G8
+    ANOM_DET --> G9
+    ANOM_DET --> G10
+    ANOM_DET --> G11
+    ANOM_DET --> G12
+    ANOM_DET --> G13
+    ANOM_DET --> G14
+    ANOM_DET --> G15
+    ANOM_DET --> G16
+    ANOM_DET --> G17
+    ANOM_DET --> G18
+    ANOM_DET --> G19
+    ANOM_DET --> G20
+    ANOM_DET --> G21
+    ANOM_DET --> G22
+    ANOM_DET --> G23
+    ANOM_DET --> G24
+    ANOM_DET --> G25
+    ANOM_DET --> G26
+    ANOM_DET --> G27
+    ANOM_DET --> G28
+    ADMIN --> G26
+    ADMIN --> G27
+    AUD --> G7
+
+    style ML_UC fill:#f3e5f5,stroke:#7b1fa2
+    style DETECT fill:#ede7f6,stroke:#9575cd
+    style FEATURES fill:#e8f5e9,stroke:#66bb6a
+    style RISK fill:#fce4ec,stroke:#f06292
+    style MODEL_MGMT fill:#e3f2fd,stroke:#42a5f5
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    class ADMIN human
+    class GOV_ENG,ANOM_DET,AUD system

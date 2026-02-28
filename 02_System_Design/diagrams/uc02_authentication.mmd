@@ -1,0 +1,42 @@
+graph LR
+    DEV["Developer / User"]
+    ADMIN["Admin"]
+    SYS["System - JWT Service"]
+
+    subgraph AUTH_UC["Authentication and User Management"]
+        direction TB
+        A1(["Register Account"])
+        A2(["Login"])
+        A3(["Obtain JWT Token"])
+        A4(["View Own Profile"])
+        A5(["Logout / Invalidate Token"])
+        A6(["Validate Credentials"])
+        A7(["Hash Password via bcrypt"])
+        A8(["Issue JWT Token"])
+        A9(["Verify Token on Request"])
+
+        A1 -.->|"include"| A7
+        A2 -.->|"include"| A6
+        A2 -.->|"include"| A8
+        A3 -.->|"extend"| A9
+        A4 -.->|"include"| A9
+        A5 -.->|"include"| A9
+    end
+
+    DEV --> A1
+    DEV --> A2
+    DEV --> A3
+    DEV --> A4
+    DEV --> A5
+    ADMIN --> A4
+    ADMIN --> A5
+    SYS --> A6
+    SYS --> A7
+    SYS --> A8
+    SYS --> A9
+
+    style AUTH_UC fill:#f0f4ff,stroke:#4a90d9
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    class DEV,ADMIN human
+    class SYS system

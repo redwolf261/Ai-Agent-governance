@@ -1,0 +1,76 @@
+graph LR
+    DEV["Developer"]
+    ADMIN["Admin / Security Officer"]
+    AI["AI Agent (External)"]
+    AUD_SVC["Audit Service (System)"]
+
+    subgraph AGENT_UC["Agent Management Use Cases"]
+        direction TB
+
+        subgraph CRUD["Agent Lifecycle"]
+            B1(["Register New Agent"])
+            B2(["View Agent List"])
+            B3(["View Agent Details"])
+            B4(["Update Agent Configuration"])
+            B5(["Deregister Agent"])
+        end
+
+        subgraph STATUS["Agent Status Control"]
+            B6(["Suspend Agent"])
+            B7(["Activate Agent"])
+            B8(["Monitor Agent Status"])
+        end
+
+        subgraph TRUST["Trust Management"]
+            B9(["View Agent Trust Score"])
+            B10(["Update Trust Level"])
+            B11(["Assign Agent Type"])
+            B12(["Define Agent Capabilities"])
+        end
+
+        subgraph AUTO["Automated Actions"]
+            B13(["Log Agent Registration"])
+            B14(["Log Status Change"])
+            B15(["Validate Agent ID Uniqueness"])
+        end
+
+        B1 -.->|"include"| B13
+        B1 -.->|"include"| B15
+        B1 -.->|"include"| B11
+        B1 -.->|"include"| B12
+        B6 -.->|"include"| B14
+        B7 -.->|"include"| B14
+        B10 -.->|"extend"| B9
+    end
+
+    DEV --> B1
+    DEV --> B2
+    DEV --> B3
+    DEV --> B4
+    DEV --> B8
+    DEV --> B9
+    ADMIN --> B5
+    ADMIN --> B6
+    ADMIN --> B7
+    ADMIN --> B9
+    ADMIN --> B10
+    ADMIN --> B11
+    ADMIN --> B2
+    ADMIN --> B3
+    AI -.->|"uses capabilities"| B3
+    AUD_SVC --> B13
+    AUD_SVC --> B14
+    AUD_SVC --> B15
+
+    style AGENT_UC fill:#f0fff4,stroke:#4caf50
+    style CRUD fill:#e8f5e9,stroke:#81c784
+    style STATUS fill:#fff3e0,stroke:#ffb74d
+    style TRUST fill:#fce4ec,stroke:#f48fb1
+    style AUTO fill:#e3f2fd,stroke:#64b5f6
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    classDef external fill:#9c27b0,stroke:#6a0080,color:#fff
+    class DEV,ADMIN human
+    class AUD_SVC system
+    class AI external

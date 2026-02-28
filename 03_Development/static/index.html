@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Governance Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #4cc9f0;
+            --warning-color: #f8961e;
+            --danger-color: #f72585;
+            --dark-color: #1a1a2e;
+            --light-bg: #f8f9fa;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            background: linear-gradient(180deg, var(--dark-color) 0%, #16213e 100%);
+            min-height: 100vh;
+            position: fixed;
+            width: 260px;
+            padding-top: 20px;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+        }
+        
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+        
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+        
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+        
+        .stat-card .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .chart-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .chart-card h5 {
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--dark-color);
+        }
+        
+        .activity-item {
+            padding: 12px 16px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .activity-item:hover {
+            background-color: var(--light-bg);
+        }
+        
+        .activity-item.warning {
+            border-left-color: var(--warning-color);
+        }
+        
+        .activity-item.danger {
+            border-left-color: var(--danger-color);
+        }
+        
+        .activity-item.success {
+            border-left-color: var(--success-color);
+        }
+        
+        .risk-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .risk-low { background: #d4edda; color: #155724; }
+        .risk-medium { background: #fff3cd; color: #856404; }
+        .risk-high { background: #f8d7da; color: #721c24; }
+        .risk-critical { background: #721c24; color: #fff; }
+        
+        .logo {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            padding: 0 20px 30px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+            color: var(--success-color);
+        }
+        
+        .table-modern {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .table-modern thead {
+            background: var(--primary-color);
+            color: #fff;
+        }
+        
+        .btn-action {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .alert-panel {
+            background: linear-gradient(135deg, var(--danger-color), #b5179e);
+            color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .loading-spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .section-header h4 {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="bi bi-shield-check"></i>
+            AI Governance
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" onclick="showSection('dashboard')">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('agents')">
+                    <i class="bi bi-robot"></i> Agents
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('tasks')">
+                    <i class="bi bi-list-task"></i> Tasks
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('governance')">
+                    <i class="bi bi-shield-lock"></i> Governance Rules
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('audit')">
+                    <i class="bi bi-journal-text"></i> Audit Logs
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('reports')">
+                    <i class="bi bi-bar-chart"></i> Reports
+                </a>
+            </li>
+        </ul>
+        <div class="mt-auto p-3" style="position: absolute; bottom: 0; width: 100%;">
+            <div class="text-muted small text-center">
+                <p class="mb-1">Rivan Shetty</p>
+                <p class="mb-0">CS-K GRP 3 | PRN: 12411956</p>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="section-dashboard">
+            <div class="section-header">
+                <h4><i class="bi bi-speedometer2 me-2"></i>Dashboard Overview</h4>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadDashboard()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-value" id="stat-agents">-</div>
+                                <div class="stat-label">Active Agents</div>
+                            </div>
+                            <div class="stat-icon" style="background: rgba(67,97,238,0.1); color: var(--primary-color);">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-value" id="stat-tasks-today">-</div>
+                                <div class="stat-label">Tasks Today</div>
+                            </div>
+                            <div class="stat-icon" style="background: rgba(76,201,240,0.1); color: var(--success-color);">
+                                <i class="bi bi-list-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-value" id="stat-pending">-</div>
+                                <div class="stat-label">Pending Reviews</div>
+                            </div>
+                            <div class="stat-icon" style="background: rgba(248,150,30,0.1); color: var(--warning-color);">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-value" id="stat-violations">-</div>
+                                <div class="stat-label">Violations (7d)</div>
+                            </div>
+                            <div class="stat-icon" style="background: rgba(247,37,133,0.1); color: var(--danger-color);">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-8">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-graph-up me-2"></i>Task Activity Timeline</h5>
+                        <canvas id="activityChart" height="100"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-pie-chart me-2"></i>Risk Distribution</h5>
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity & Alerts -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+                        <div id="recent-activity" style="max-height: 300px; overflow-y: auto;">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-flag me-2"></i>Flagged Tasks Requiring Review</h5>
+                        <div id="flagged-tasks" style="max-height: 300px; overflow-y: auto;">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Agents Section -->
+        <section id="section-agents" style="display: none;">
+            <div class="section-header">
+                <h4><i class="bi bi-robot me-2"></i>AI Agents</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAgentModal">
+                    <i class="bi bi-plus-lg"></i> Register Agent
+                </button>
+            </div>
+            <div class="chart-card">
+                <div class="table-responsive">
+                    <table class="table table-modern table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Trust Level</th>
+                                <th>Last Active</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-table">
+                            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tasks Section -->
+        <section id="section-tasks" style="display: none;">
+            <div class="section-header">
+                <h4><i class="bi bi-list-task me-2"></i>Tasks</h4>
+                <div>
+                    <select class="form-select form-select-sm d-inline-block w-auto me-2" id="task-filter-status">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="running">Running</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="flagged">Flagged</option>
+                        <option value="blocked">Blocked</option>
+                    </select>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadTasks()">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="table-responsive">
+                    <table class="table table-modern table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Agent</th>
+                                <th>Status</th>
+                                <th>Risk</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-table">
+                            <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Governance Section -->
+        <section id="section-governance" style="display: none;">
+            <div class="section-header">
+                <h4><i class="bi bi-shield-lock me-2"></i>Governance Rules</h4>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" onclick="initDefaultRules()">
+                        <i class="bi bi-gear"></i> Init Defaults
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRuleModal">
+                        <i class="bi bi-plus-lg"></i> Add Rule
+                    </button>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="table-responsive">
+                    <table class="table table-modern table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rules-table">
+                            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Audit Section -->
+        <section id="section-audit" style="display: none;">
+            <div class="section-header">
+                <h4><i class="bi bi-journal-text me-2"></i>Audit Logs</h4>
+                <button class="btn btn-outline-primary btn-sm" onclick="exportAuditLogs()">
+                    <i class="bi bi-download"></i> Export
+                </button>
+            </div>
+            <div class="chart-card">
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-modern table-hover table-sm">
+                        <thead style="position: sticky; top: 0;">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Severity</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="section-reports" style="display: none;">
+            <div class="section-header">
+                <h4><i class="bi bi-bar-chart me-2"></i>Compliance Reports</h4>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h5>Generate Compliance Report</h5>
+                        <form id="report-form">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="report-start-date">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="report-end-date">
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="generateReport()">
+                                <i class="bi bi-file-earmark-text"></i> Generate Report
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h5>Report Summary</h5>
+                        <div id="report-content">
+                            <p class="text-muted">Select date range and generate report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add Agent Modal -->
+    <div class="modal fade" id="addAgentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Register New Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-agent-form">
+                        <div class="mb-3">
+                            <label class="form-label">Agent Name</label>
+                            <input type="text" class="form-control" id="agent-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Agent Type</label>
+                            <select class="form-select" id="agent-type">
+                                <option value="code_generator">Code Generator</option>
+                                <option value="code_reviewer">Code Reviewer</option>
+                                <option value="test_runner">Test Runner</option>
+                                <option value="documentation">Documentation</option>
+                                <option value="monitoring">Monitoring</option>
+                                <option value="deployment">Deployment</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="agent-description" rows="3"></textarea>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="agent-trusted">
+                            <label class="form-check-label">Trusted Agent</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="registerAgent()">Register</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Rule Modal -->
+    <div class="modal fade" id="addRuleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Governance Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-rule-form">
+                        <div class="mb-3">
+                            <label class="form-label">Rule Name</label>
+                            <input type="text" class="form-control" id="rule-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Rule Type</label>
+                            <select class="form-select" id="rule-type">
+                                <option value="risk_threshold">Risk Threshold</option>
+                                <option value="operation_restriction">Operation Restriction</option>
+                                <option value="task_type_restriction">Task Type Restriction</option>
+                                <option value="rate_limit">Rate Limit</option>
+                                <option value="data_sensitivity">Data Sensitivity</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Action</label>
+                            <select class="form-select" id="rule-action">
+                                <option value="flag">Flag for Review</option>
+                                <option value="block">Block Execution</option>
+                                <option value="escalate">Escalate</option>
+                                <option value="log_only">Log Only</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Condition (JSON)</label>
+                            <textarea class="form-control" id="rule-condition" rows="3" placeholder='{"threshold": 0.7}'></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <input type="number" class="form-control" id="rule-priority" value="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createRule()">Create Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // API Base URL
+        const API_BASE = '/api';
+        
+        // Chart instances
+        let activityChart = null;
+        let riskChart = null;
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            
+            // Set default date range for reports
+            const today = new Date();
+            const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
+            document.getElementById('report-end-date').value = today.toISOString().split('T')[0];
+            document.getElementById('report-start-date').value = weekAgo.toISOString().split('T')[0];
+        });
+        
+        // Section Navigation
+        function showSection(section) {
+            document.querySelectorAll('section').forEach(s => s.style.display = 'none');
+            document.getElementById('section-' + section).style.display = 'block';
+            
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            event.target.closest('.nav-link').classList.add('active');
+            
+            // Load section data
+            switch(section) {
+                case 'dashboard': loadDashboard(); break;
+                case 'agents': loadAgents(); break;
+                case 'tasks': loadTasks(); break;
+                case 'governance': loadRules(); break;
+                case 'audit': loadAuditLogs(); break;
+            }
+        }
+        
+        // Dashboard Loading
+        async function loadDashboard() {
+            try {
+                const [summary, timeline, activity, flagged] = await Promise.all([
+                    fetch(API_BASE + '/dashboard/summary').then(r => r.json()),
+                    fetch(API_BASE + '/dashboard/activity-timeline?days=7').then(r => r.json()),
+                    fetch(API_BASE + '/dashboard/recent-activity?limit=10').then(r => r.json()),
+                    fetch(API_BASE + '/tasks/flagged?limit=5').then(r => r.json())
+                ]);
+                
+                if (summary.success) {
+                    document.getElementById('stat-agents').textContent = summary.data.agents.active;
+                    document.getElementById('stat-tasks-today').textContent = summary.data.tasks.today;
+                    document.getElementById('stat-pending').textContent = summary.data.alerts.pending_reviews;
+                    document.getElementById('stat-violations').textContent = summary.data.alerts.violations_this_week;
+                    
+                    updateRiskChart(summary.data.tasks.risk_breakdown);
+                }
+                
+                if (timeline.success) {
+                    updateActivityChart(timeline.data);
+                }
+                
+                if (activity.success) {
+                    renderRecentActivity(activity.data);
+                }
+                
+                if (flagged.success) {
+                    renderFlaggedTasks(flagged.data);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        // Charts
+        function updateActivityChart(data) {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            
+            if (activityChart) activityChart.destroy();
+            
+            activityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [{
+                        label: 'Total Tasks',
+                        data: data.map(d => d.total),
+                        borderColor: '#4361ee',
+                        tension: 0.3,
+                        fill: false
+                    }, {
+                        label: 'Completed',
+                        data: data.map(d => d.completed || 0),
+                        borderColor: '#4cc9f0',
+                        tension: 0.3,
+                        fill: false
+                    }, {
+                        label: 'Flagged/Blocked',
+                        data: data.map(d => (d.flagged || 0) + (d.blocked || 0)),
+                        borderColor: '#f72585',
+                        tension: 0.3,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+        
+        function updateRiskChart(data) {
+            const ctx = document.getElementById('riskChart').getContext('2d');
+            
+            if (riskChart) riskChart.destroy();
+            
+            riskChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low', 'Medium', 'High', 'Critical'],
+                    datasets: [{
+                        data: [data.low || 0, data.medium || 0, data.high || 0, data.critical || 0],
+                        backgroundColor: ['#4cc9f0', '#f8961e', '#f72585', '#7b2cbf']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+        
+        // Recent Activity
+        function renderRecentActivity(activities) {
+            const container = document.getElementById('recent-activity');
+            if (!activities.length) {
+                container.innerHTML = '<p class="text-muted text-center">No recent activity</p>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(a => {
+                const severityClass = a.severity === 'critical' ? 'danger' : 
+                                     a.severity === 'warning' ? 'warning' : 'success';
+                return `
+                    <div class="activity-item ${severityClass}">
+                        <div class="d-flex justify-content-between">
+                            <strong>${a.action.replace(/_/g, ' ')}</strong>
+                            <small class="text-muted">${new Date(a.timestamp).toLocaleTimeString()}</small>
+                        </div>
+                        <small class="text-muted">${a.entity_type}: ${a.context?.task_title || a.context?.agent_name || a.entity_id?.slice(0,8) || 'N/A'}</small>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Flagged Tasks
+        function renderFlaggedTasks(tasks) {
+            const container = document.getElementById('flagged-tasks');
+            if (!tasks.length) {
+                container.innerHTML = '<p class="text-muted text-center">No tasks pending review</p>';
+                return;
+            }
+            
+            container.innerHTML = tasks.map(t => `
+                <div class="activity-item warning">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${t.title}</strong>
+                            <div><small class="text-muted">${t.task_type} | Risk: ${(t.risk_score * 100).toFixed(0)}%</small></div>
+                        </div>
+                        <div>
+                            <button class="btn btn-success btn-sm me-1" onclick="approveTask('${t.id}')">
+                                <i class="bi bi-check"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="rejectTask('${t.id}')">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Agents
+        async function loadAgents() {
+            try {
+                const response = await fetch(API_BASE + '/agents');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.getElementById('agents-table');
+                    if (!data.data.length) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No agents registered</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.data.map(a => `
+                        <tr>
+                            <td><strong>${a.name}</strong></td>
+                            <td>${a.agent_type}</td>
+                            <td><span class="badge bg-${a.status === 'active' ? 'success' : 'secondary'}">${a.status}</span></td>
+                            <td>${a.is_trusted ? '<i class="bi bi-shield-check text-success"></i> Trusted' : '<i class="bi bi-shield text-muted"></i> Standard'}</td>
+                            <td>${a.last_active_at ? new Date(a.last_active_at).toLocaleString() : 'Never'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-${a.status === 'active' ? 'warning' : 'success'}" 
+                                        onclick="${a.status === 'active' ? `suspendAgent('${a.id}')` : `activateAgent('${a.id}')`}">
+                                    ${a.status === 'active' ? 'Suspend' : 'Activate'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
+        
+        async function registerAgent() {
+            const agent = {
+                name: document.getElementById('agent-name').value,
+                agent_type: document.getElementById('agent-type').value,
+                description: document.getElementById('agent-description').value,
+                is_trusted: document.getElementById('agent-trusted').checked
+            };
+            
+            try {
+                const response = await fetch(API_BASE + '/agents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(agent)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('addAgentModal')).hide();
+                    loadAgents();
+                    alert('Agent registered successfully!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error registering agent');
+            }
+        }
+        
+        async function suspendAgent(id) {
+            if (!confirm('Suspend this agent?')) return;
+            await fetch(API_BASE + '/agents/' + id + '/suspend', { method: 'POST' });
+            loadAgents();
+        }
+        
+        async function activateAgent(id) {
+            await fetch(API_BASE + '/agents/' + id + '/activate', { method: 'POST' });
+            loadAgents();
+        }
+        
+        // Tasks
+        async function loadTasks() {
+            const status = document.getElementById('task-filter-status').value;
+            const url = status ? `${API_BASE}/tasks?status=${status}` : `${API_BASE}/tasks`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.getElementById('tasks-table');
+                    if (!data.data.length) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No tasks found</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.data.map(t => `
+                        <tr>
+                            <td>${t.title}</td>
+                            <td>${t.task_type}</td>
+                            <td>${t.agent_id.slice(0,8)}...</td>
+                            <td><span class="badge bg-${getStatusColor(t.status)}">${t.status}</span></td>
+                            <td><span class="risk-badge risk-${t.risk_level}">${t.risk_level}</span></td>
+                            <td>${new Date(t.created_at).toLocaleString()}</td>
+                            <td>
+                                ${t.status === 'flagged' ? `
+                                    <button class="btn btn-sm btn-success" onclick="approveTask('${t.id}')">Approve</button>
+                                    <button class="btn btn-sm btn-danger" onclick="rejectTask('${t.id}')">Reject</button>
+                                ` : '-'}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+        
+        function getStatusColor(status) {
+            const colors = {
+                pending: 'secondary', running: 'primary', completed: 'success',
+                failed: 'danger', flagged: 'warning', blocked: 'dark', approved: 'info'
+            };
+            return colors[status] || 'secondary';
+        }
+        
+        async function approveTask(id) {
+            const reviewer = prompt('Enter reviewer name:');
+            if (!reviewer) return;
+            
+            await fetch(API_BASE + '/tasks/' + id + '/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewer, notes: 'Approved via dashboard' })
+            });
+            
+            loadDashboard();
+            loadTasks();
+        }
+        
+        async function rejectTask(id) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+            
+            await fetch(API_BASE + '/tasks/' + id + '/reject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewer: 'Dashboard User', reason })
+            });
+            
+            loadDashboard();
+            loadTasks();
+        }
+        
+        // Governance Rules
+        async function loadRules() {
+            try {
+                const response = await fetch(API_BASE + '/governance/rules');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.getElementById('rules-table');
+                    if (!data.data.length) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No rules defined</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.data.map(r => `
+                        <tr>
+                            <td><strong>${r.name}</strong></td>
+                            <td>${r.rule_type}</td>
+                            <td><span class="badge bg-${r.action === 'block' ? 'danger' : 'warning'}">${r.action}</span></td>
+                            <td>${r.priority}</td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" ${r.is_active ? 'checked' : ''} 
+                                           onchange="toggleRule('${r.id}')">
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRule('${r.id}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading rules:', error);
+            }
+        }
+        
+        async function createRule() {
+            const rule = {
+                name: document.getElementById('rule-name').value,
+                rule_type: document.getElementById('rule-type').value,
+                action: document.getElementById('rule-action').value,
+                condition: document.getElementById('rule-condition').value || '{}',
+                priority: parseInt(document.getElementById('rule-priority').value)
+            };
+            
+            try {
+                const response = await fetch(API_BASE + '/governance/rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rule)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('addRuleModal')).hide();
+                    loadRules();
+                    alert('Rule created successfully!');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating rule');
+            }
+        }
+        
+        async function toggleRule(id) {
+            await fetch(API_BASE + '/governance/rules/' + id + '/toggle', { method: 'POST' });
+        }
+        
+        async function deleteRule(id) {
+            if (!confirm('Delete this rule?')) return;
+            await fetch(API_BASE + '/governance/rules/' + id, { method: 'DELETE' });
+            loadRules();
+        }
+        
+        async function initDefaultRules() {
+            await fetch(API_BASE + '/governance/init-defaults', { method: 'POST' });
+            loadRules();
+            alert('Default rules initialized!');
+        }
+        
+        // Audit Logs
+        async function loadAuditLogs() {
+            try {
+                const response = await fetch(API_BASE + '/audit/logs?limit=100');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.getElementById('audit-table');
+                    if (!data.data.length) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No audit logs</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.data.map(l => `
+                        <tr>
+                            <td>${new Date(l.timestamp).toLocaleString()}</td>
+                            <td>${l.action}</td>
+                            <td>${l.entity_type}</td>
+                            <td><span class="badge bg-${l.severity === 'critical' ? 'danger' : l.severity === 'warning' ? 'warning' : 'info'}">${l.severity}</span></td>
+                            <td><small>${l.details ? l.details.slice(0, 50) : '-'}...</small></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading audit logs:', error);
+            }
+        }
+        
+        function exportAuditLogs() {
+            window.open(API_BASE + '/audit/export?format=csv', '_blank');
+        }
+        
+        // Reports
+        async function generateReport() {
+            const startDate = document.getElementById('report-start-date').value;
+            const endDate = document.getElementById('report-end-date').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/audit/compliance-report?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const r = data.data;
+                    document.getElementById('report-content').innerHTML = `
+                        <div class="mb-3">
+                            <h6>Summary</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Total Events:</strong> ${r.summary.total_events}</li>
+                                <li><strong>Governance Violations:</strong> ${r.summary.governance_violations}</li>
+                                <li><strong>Anomalies Detected:</strong> ${r.summary.anomaly_detections}</li>
+                            </ul>
+                        </div>
+                        <div class="mb-3">
+                            <h6>Task Execution</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Tasks Created:</strong> ${r.task_execution.total_created}</li>
+                                <li><strong>Completed:</strong> ${r.task_execution.completed}</li>
+                                <li><strong>Failed:</strong> ${r.task_execution.failed}</li>
+                                <li><strong>Blocked:</strong> ${r.task_execution.blocked}</li>
+                                <li><strong>Completion Rate:</strong> ${r.task_execution.completion_rate}%</li>
+                            </ul>
+                        </div>
+                        <small class="text-muted">Generated: ${new Date(r.generated_at).toLocaleString()}</small>
+                    `;
+                }
+            } catch (error) {
+                alert('Error generating report');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+graph LR
+    ADMIN["Admin / Security Officer"]
+    DEV["Developer (Read Only)"]
+    GOV_ENG["Governance Engine (System)"]
+    AUD["Audit Service"]
+
+    subgraph GOV_UC["Governance Rules Management Use Cases"]
+        direction TB
+
+        subgraph CRUD_RULES["Rule CRUD"]
+            D1(["Create Governance Rule"])
+            D2(["View All Rules"])
+            D3(["View Rule Details"])
+            D4(["Update Rule Parameters"])
+            D5(["Enable / Disable Rule"])
+            D6(["Delete Rule"])
+        end
+
+        subgraph RULE_CONFIG["Rule Configuration"]
+            D7(["Set Rule Type - rate_limit / file_access / resource_limit / data_privacy / network_access / behavioral / custom"])
+            D8(["Set Rule Action - ALLOW / BLOCK / FLAG / ESCALATE / LOG_ONLY / REQUIRE_APPROVAL"])
+            D9(["Set Rule Severity - LOW / MEDIUM / HIGH / CRITICAL"])
+            D10(["Set Rule Priority Order"])
+            D11(["Set Applies-To Agent Type"])
+        end
+
+        subgraph RULE_EVAL["Rule Evaluation - Automated"]
+            D12(["Evaluate Task Against Rules"])
+            D13(["Match Rule Conditions"])
+            D14(["Apply Rule Action"])
+            D15(["Cache Rule Evaluation Result"])
+            D16(["Log Rule Trigger"])
+        end
+
+        subgraph RULE_AUDIT["Rule Audit Trail"]
+            D17(["View Rule Change History"])
+            D18(["View Rule Violation Log"])
+            D19(["Export Rule Set"])
+        end
+
+        D1 -.->|"include"| D7
+        D1 -.->|"include"| D8
+        D1 -.->|"include"| D9
+        D1 -.->|"include"| D10
+        D1 -.->|"extend"| D11
+        D4 -.->|"include"| D8
+        D4 -.->|"include"| D9
+        D12 -.->|"include"| D13
+        D13 -.->|"include"| D14
+        D14 -.->|"include"| D15
+        D14 -.->|"include"| D16
+    end
+
+    ADMIN --> D1
+    ADMIN --> D2
+    ADMIN --> D3
+    ADMIN --> D4
+    ADMIN --> D5
+    ADMIN --> D6
+    ADMIN --> D7
+    ADMIN --> D8
+    ADMIN --> D9
+    ADMIN --> D10
+    ADMIN --> D11
+    ADMIN --> D17
+    ADMIN --> D18
+    ADMIN --> D19
+    DEV --> D2
+    DEV --> D3
+    DEV --> D18
+    GOV_ENG --> D12
+    GOV_ENG --> D13
+    GOV_ENG --> D14
+    GOV_ENG --> D15
+    GOV_ENG --> D16
+    AUD --> D17
+    AUD --> D18
+
+    style GOV_UC fill:#f3e5f5,stroke:#9c27b0
+    style CRUD_RULES fill:#ede7f6,stroke:#9575cd
+    style RULE_CONFIG fill:#fce4ec,stroke:#f48fb1
+    style RULE_EVAL fill:#e8f5e9,stroke:#66bb6a
+    style RULE_AUDIT fill:#e3f2fd,stroke:#42a5f5
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    class DEV,ADMIN human
+    class GOV_ENG,AUD system

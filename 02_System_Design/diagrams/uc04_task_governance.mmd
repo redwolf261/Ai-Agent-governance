@@ -1,0 +1,107 @@
+graph TD
+    DEV["Developer"]
+    HUMAN_REV["Human Reviewer"]
+    AI["AI Agent (External)"]
+    GOV_ENG["Governance Engine"]
+    ANOM["Anomaly Detector"]
+    AUD["Audit Service"]
+
+    subgraph TASK_UC["Task Management and Governance Use Cases"]
+
+        subgraph SUBMIT["Task Submission"]
+            C1(["Submit Task with Parameters"])
+            C2(["Validate Task Input Schema"])
+            C3(["Assign Task to Agent"])
+        end
+
+        subgraph EVAL["Governance Evaluation - Automated"]
+            C4(["Evaluate Task Against Rules"])
+            C5(["Score Task Risk Level"])
+            C6(["Detect Behavioral Anomaly"])
+            C7(["Apply Advanced Governance Checks"])
+        end
+
+        subgraph OUTCOME["Task Decision Outcome"]
+            C8(["Allow Task Execution"])
+            C9(["Block Task"])
+            C10(["Flag Task for Review"])
+            C11(["Escalate to Admin"])
+            C12(["Require Human Approval"])
+        end
+
+        subgraph EXEC["Task Execution"]
+            C13(["Start Task Execution"])
+            C14(["Complete Task"])
+            C15(["Fail Task"])
+            C16(["Record Output and Metadata"])
+        end
+
+        subgraph REVIEW["Human Review"]
+            C17(["View Flagged Task Details"])
+            C18(["Approve Flagged Task"])
+            C19(["Reject Flagged Task"])
+            C20(["Add Review Note"])
+        end
+
+        subgraph HISTORY["Task History"]
+            C21(["View Own Task History"])
+            C22(["View Task Execution Logs"])
+            C23(["View Task Decision Lineage"])
+        end
+
+        C1 -.->|"include"| C2
+        C1 -.->|"include"| C3
+        C1 -.->|"include"| C4
+        C4 -.->|"include"| C5
+        C4 -.->|"include"| C6
+        C4 -.->|"include"| C7
+        C4 -.->|"extend"| C8
+        C4 -.->|"extend"| C9
+        C4 -.->|"extend"| C10
+        C4 -.->|"extend"| C11
+        C10 -.->|"include"| C12
+        C8 -.->|"include"| C13
+        C13 -.->|"extend"| C14
+        C13 -.->|"extend"| C15
+        C14 -.->|"include"| C16
+        C18 -.->|"include"| C13
+        C19 -.->|"extend"| C9
+    end
+
+    DEV --> C1
+    DEV --> C21
+    DEV --> C22
+    DEV --> C23
+    HUMAN_REV --> C17
+    HUMAN_REV --> C18
+    HUMAN_REV --> C19
+    HUMAN_REV --> C20
+    AI --> C13
+    AI --> C14
+    AI --> C15
+    GOV_ENG --> C4
+    GOV_ENG --> C7
+    GOV_ENG --> C8
+    GOV_ENG --> C9
+    GOV_ENG --> C10
+    GOV_ENG --> C11
+    ANOM --> C5
+    ANOM --> C6
+    AUD --> C16
+    AUD --> C22
+    AUD --> C23
+
+    style TASK_UC fill:#fffde7,stroke:#f9a825
+    style SUBMIT fill:#e8f5e9,stroke:#66bb6a
+    style EVAL fill:#fce4ec,stroke:#f06292
+    style OUTCOME fill:#f3e5f5,stroke:#ab47bc
+    style EXEC fill:#e3f2fd,stroke:#42a5f5
+    style REVIEW fill:#fff3e0,stroke:#ffa726
+    style HISTORY fill:#e0f2f1,stroke:#26a69a
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    classDef external fill:#9c27b0,stroke:#6a0080,color:#fff
+    class DEV,HUMAN_REV human
+    class GOV_ENG,ANOM,AUD system
+    class AI external

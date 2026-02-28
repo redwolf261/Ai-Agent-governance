@@ -1,0 +1,126 @@
+graph TD
+    GOV_ENG["Governance Engine (Orchestrator)"]
+    ADMIN["Admin / Security Officer"]
+    AUD["Audit Service"]
+
+    subgraph ADV_UC["Advanced Governance - 6 Failure Mode Detectors"]
+
+        subgraph BV["1. BoundaryViolationDetector"]
+            H1_1(["Check File System Access Scope"])
+            H1_2(["Check Database Query Scope"])
+            H1_3(["Check Network Endpoint Scope"])
+            H1_4(["Check Memory Usage Threshold"])
+            H1_5(["Detect Data Exfiltration Pattern"])
+        end
+
+        subgraph GM["2. GoalMisalignmentDetector"]
+            H2_1(["Detect Reward Hacking Attempt"])
+            H2_2(["Check Specification Gaming"])
+            H2_3(["Detect Proxy Metric Exploitation"])
+            H2_4(["Validate Output Aligns with Intent"])
+            H2_5(["Check Distribution Shift"])
+        end
+
+        subgraph TC["3. ToolChainingGuardian"]
+            H3_1(["Limit Tool Call Depth"])
+            H3_2(["Check Tool Call Frequency"])
+            H3_3(["Detect Recursive Tool Loops"])
+            H3_4(["Monitor Cross-Tool Side Effects"])
+            H3_5(["Enforce Tool Permission Scope"])
+        end
+
+        subgraph IN["4. ImplicitNormEnforcer"]
+            H4_1(["Check Business Hours Enforcement"])
+            H4_2(["Validate Change Management Workflow"])
+            H4_3(["Enforce Code Review Process"])
+            H4_4(["Check Notification Requirements"])
+            H4_5(["Validate Rollback Plan Exists"])
+        end
+
+        subgraph RB["5. RunawayBehaviorPrevention"]
+            H5_1(["Detect Runaway Loops"])
+            H5_2(["Enforce Max Execution Duration"])
+            H5_3(["Detect Exponential Resource Scaling"])
+            H5_4(["Check Agent Self-Replication"])
+            H5_5(["Monitor Task Spawn Rate"])
+        end
+
+        subgraph SB["6. SecurityBoundaryEnforcer"]
+            H6_1(["Detect Prompt Injection Attempt"])
+            H6_2(["Check Privilege Escalation Attempt"])
+            H6_3(["Detect Credential Access Attempt"])
+            H6_4(["Detect Lateral Movement Pattern"])
+            H6_5(["Enforce Least Privilege Principle"])
+        end
+
+        subgraph OUTCOME2["Detection Outcomes"]
+            H7(["Return BLOCKED + Reason"])
+            H8(["Return FLAGGED + Warning"])
+            H9(["Return PASS - No Violation"])
+            H10(["Trigger Emergency Stop"])
+        end
+
+        H1_5 -.->|"extend"| H7
+        H2_1 -.->|"extend"| H7
+        H3_3 -.->|"extend"| H10
+        H4_1 -.->|"extend"| H8
+        H5_1 -.->|"extend"| H10
+        H5_3 -.->|"extend"| H7
+        H6_1 -.->|"extend"| H7
+        H6_2 -.->|"extend"| H7
+    end
+
+    GOV_ENG --> H1_1
+    GOV_ENG --> H1_2
+    GOV_ENG --> H1_3
+    GOV_ENG --> H1_4
+    GOV_ENG --> H1_5
+    GOV_ENG --> H2_1
+    GOV_ENG --> H2_2
+    GOV_ENG --> H2_3
+    GOV_ENG --> H2_4
+    GOV_ENG --> H2_5
+    GOV_ENG --> H3_1
+    GOV_ENG --> H3_2
+    GOV_ENG --> H3_3
+    GOV_ENG --> H3_4
+    GOV_ENG --> H3_5
+    GOV_ENG --> H4_1
+    GOV_ENG --> H4_2
+    GOV_ENG --> H4_3
+    GOV_ENG --> H4_4
+    GOV_ENG --> H4_5
+    GOV_ENG --> H5_1
+    GOV_ENG --> H5_2
+    GOV_ENG --> H5_3
+    GOV_ENG --> H5_4
+    GOV_ENG --> H5_5
+    GOV_ENG --> H6_1
+    GOV_ENG --> H6_2
+    GOV_ENG --> H6_3
+    GOV_ENG --> H6_4
+    GOV_ENG --> H6_5
+    GOV_ENG --> H7
+    GOV_ENG --> H8
+    GOV_ENG --> H9
+    GOV_ENG --> H10
+    ADMIN --> H7
+    ADMIN --> H8
+    ADMIN --> H10
+    AUD --> H7
+    AUD --> H8
+    AUD --> H10
+
+    style ADV_UC fill:#fff8e1,stroke:#f9a825
+    style BV fill:#fce4ec,stroke:#e91e63
+    style GM fill:#f3e5f5,stroke:#9c27b0
+    style TC fill:#e8eaf6,stroke:#3f51b5
+    style IN fill:#e8f5e9,stroke:#4caf50
+    style RB fill:#fff3e0,stroke:#ff9800
+    style SB fill:#ffebee,stroke:#f44336
+    style OUTCOME2 fill:#e0f7fa,stroke:#00bcd4
+
+    classDef human fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef system fill:#e8a838,stroke:#b37a20,color:#fff
+    class ADMIN human
+    class GOV_ENG,AUD system
