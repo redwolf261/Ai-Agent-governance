@@ -1,86 +1,137 @@
-graph TB
-    subgraph "System Snapshot - Runtime Instance"
-        subgraph Users
-            user1["<u>adminUser: User</u><br/>User_Id: U-001<br/>Name: John Admin<br/>role: administrator<br/>privilegeae: full_access"]
-            user2["<u>managerUser: User</u><br/>User_Id: U-002<br/>Name: Sarah Manager<br/>role: manager<br/>privilegeae: approve_tasks"]
-        end
-
-        subgraph "AI Tasks"
-            task1["<u>deployTask: Ai Task</u><br/>task_id: T-101<br/>agent_id: AGT-501<br/>timestamp: 2026-03-01 14:30:00<br/>input_data: Deploy v2.3.1<br/>output: null<br/>status: pending_approval"]
-            task2["<u>codeReviewTask: Ai Task</u><br/>task_id: T-102<br/>agent_id: AGT-502<br/>timestamp: 2026-03-01 14:45:00<br/>input_data: Review PR #445<br/>output: Approved with suggestions<br/>status: completed"]
-            task3["<u>dataAnalysisTask: Ai Task</u><br/>task_id: T-103<br/>agent_id: AGT-503<br/>timestamp: 2026-03-01 15:00:00<br/>input_data: Analyze user patterns<br/>output: null<br/>status: flagged"]
-        end
-
-        subgraph "Governance Rules"
-            rule1["<u>deploymentRule: Governance Rule</u><br/>rule_Id: R-201<br/>rule_name: Production Deployment Control<br/>Description: Requires approval for prod<br/>severity: critical"]
-            rule2["<u>dataAccessRule: Governance Rule</u><br/>rule_Id: R-202<br/>rule_name: Sensitive Data Access<br/>Description: Monitor data operations<br/>severity: high"]
-            rule3["<u>timeoutRule: Governance Rule</u><br/>rule_Id: R-203<br/>rule_name: Task Timeout Limit<br/>Description: Max 30min execution<br/>severity: medium"]
-        end
-
-        subgraph "Audit Reports"
-            report1["<u>dailyReport: Audit report</u><br/>report_id: AR-301<br/>generated_id: U-001<br/>date: 2026-03-01<br/>report_data: 15 tasks, 3 violations"]
-            report2["<u>complianceReport: Audit report</u><br/>report_id: AR-302<br/>generated_id: U-002<br/>date: 2026-03-01<br/>report_data: Monthly compliance check"]
-        end
-
-        subgraph Escalations
-            esc1["<u>deployEscalation: Escalation</u><br/>Escalation_id: ESC-401<br/>Task_id: T-101<br/>Escalated_to: U-002<br/>timestamp: 2026-03-01 14:35:00<br/>status: pending_review"]
-            esc2["<u>anomalyEscalation: Escalation</u><br/>Escalation_id: ESC-402<br/>Task_id: T-103<br/>Escalated_to: U-001<br/>timestamp: 2026-03-01 15:05:00<br/>status: under_investigation"]
-        end
-
-        subgraph Decisions
-            dec1["<u>decision1: Decision</u><br/>task: T-101<br/>decision_path: Evaluate→Flag→Escalate<br/>parent_task: null<br/>lineage: Root Decision"]
-            dec2["<u>decision2: Decision</u><br/>task: T-102<br/>decision_path: Evaluate→Approve→Complete<br/>parent_task: null<br/>lineage: Auto-approved"]
-            dec3["<u>decision3: Decision</u><br/>task: T-103<br/>decision_path: Evaluate→DetectAnomaly→Block<br/>parent_task: null<br/>lineage: Security Alert"]
-        end
-
-        subgraph "Anomaly Detection"
-            anomaly1["<u>deploymentAnomaly: Anomaly Detection</u><br/>detection_id: AD-501<br/>model_type: isolation_forest<br/>threshold: 0.75"]
-            anomaly2["<u>behaviorAnomaly: Anomaly Detection</u><br/>detection_id: AD-502<br/>model_type: one_class_svm<br/>threshold: 0.80"]
-        end
-    end
-
-    %% Relationships based on class diagram
-    user1 ---|1 creates 0..*| task1
-    user1 ---|generates| report1
-    user1 ---|defines| rule1
-    user1 ---|defines| rule2
+classDiagram
+    class adminUser {
+        &lt;&lt;User&gt;&gt;
+        User_Id: U-001
+        Name: John Admin
+        role: administrator
+        privilegeae: full_access
+    }
     
-    user2 ---|1 creates 0..*| task2
-    user2 ---|1 creates 0..*| task3
-    user2 ---|generates| report2
-    user2 ---|defines| rule3
-    
-    task1 ---|generates| report1
-    task2 ---|generates| report1
-    task3 ---|generates| report2
-    
-    task1 ---|1-1| esc1
-    task3 ---|1-1| esc2
-    
-    task1 ---|evaluated by| rule1
-    task1 ---|evaluated by| rule3
-    task2 ---|evaluated by| rule3
-    task3 ---|evaluated by| rule2
-    
-    task1 ---|1-1.*| dec1
-    task2 ---|1-1.*| dec2
-    task3 ---|1-1.*| dec3
-    
-    task1 ---|1-1| anomaly1
-    task3 ---|1-1| anomaly2
+    class engineerUser {
+        &lt;&lt;User&gt;&gt;
+        User_Id: U-002
+        Name: Sarah Engineer
+        role: engineer
+        privilegeae: limited_access
+    }
 
-    classDef userClass fill:#e1f5ff,stroke:#01579b,stroke-width:2px
-    classDef taskClass fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef ruleClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    classDef reportClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef escalationClass fill:#ffe0b2,stroke:#e65100,stroke-width:2px
-    classDef decisionClass fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
-    classDef anomalyClass fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    class deployTask {
+        &lt;&lt;Ai Task&gt;&gt;
+        task_id: TSK-101
+        agent_id: AGT-201
+        timestamp: 2026-03-01 14:30:00
+        input_data: Deploy to Prod
+        output: Pending
+        status: pending
+    }
     
-    class user1,user2 userClass
-    class task1,task2,task3 taskClass
-    class rule1,rule2,rule3 ruleClass
-    class report1,report2 reportClass
-    class esc1,esc2 escalationClass
-    class dec1,dec2,dec3 decisionClass
-    class anomaly1,anomaly2 anomalyClass
+    class reviewTask {
+        &lt;&lt;Ai Task&gt;&gt;
+        task_id: TSK-102
+        agent_id: AGT-202
+        timestamp: 2026-03-01 15:00:00
+        input_data: Review PR-445
+        output: Approved
+        status: completed
+    }
+    
+    class analysisTask {
+        &lt;&lt;Ai Task&gt;&gt;
+        task_id: TSK-103
+        agent_id: AGT-203
+        timestamp: 2026-03-01 15:30:00
+        input_data: Analyze patterns
+        output: null
+        status: flagged
+    }
+
+    class deployRule {
+        &lt;&lt;Governence Rule&gt;&gt;
+        rule_Id: GR-301
+        rule_name: Deploy Control
+        Description: Block risky deploys
+        severity: critical
+    }
+    
+    class accessRule {
+        &lt;&lt;Governence Rule&gt;&gt;
+        rule_Id: GR-302
+        rule_name: Data Access
+        Description: Monitor data ops
+        severity: high
+    }
+
+    class dailyReport {
+        &lt;&lt;Audit report&gt;&gt;
+        report_id: RPT-401
+        generated_id: U-001
+        date: 2026-03-01
+        report_data: 25 tasks logged
+    }
+
+    class escalation1 {
+        &lt;&lt;Escalation&gt;&gt;
+        Escalation_id: ESC-501
+        Task_id: TSK-101
+        Escalated_to: U-001
+        timestamp: 2026-03-01 14:35:00
+        status: pending_review
+    }
+    
+    class escalation2 {
+        &lt;&lt;Escalation&gt;&gt;
+        Escalation_id: ESC-502
+        Task_id: TSK-103
+        Escalated_to: U-001
+        timestamp: 2026-03-01 15:35:00
+        status: investigating
+    }
+
+    class decision1 {
+        &lt;&lt;Decision&gt;&gt;
+        task: TSK-101
+        decision_path: flag,escalate
+        parent_task: null
+        lineage: root
+    }
+    
+    class decision2 {
+        &lt;&lt;Decision&gt;&gt;
+        task: TSK-102
+        decision_path: approve
+        parent_task: null
+        lineage: auto-approved
+    }
+
+    class anomalyDet1 {
+        &lt;&lt;Anomaly-Detection&gt;&gt;
+        detection_id: AD-601
+        model_type: isolation_forest
+        threshold: 0.75
+    }
+
+    %% Relationships matching class diagram
+    adminUser "1" -- "0..*" deployTask : creates
+    adminUser "1" -- "0..*" dailyReport : generates
+    adminUser "1" -- "0..*" deployRule : defines
+    
+    engineerUser "1" -- "0..*" reviewTask : creates
+    engineerUser "1" -- "0..*" analysisTask : creates
+    engineerUser "1" -- "0..*" accessRule : defines
+    
+    deployTask "0..*" -- "1" dailyReport : generates
+    reviewTask "0..*" -- "1" dailyReport : generates
+    analysisTask "0..*" -- "1" dailyReport : generates
+    
+    deployTask "1" -- "1" escalation1 : has
+    analysisTask "1" -- "1" escalation2 : has
+    
+    deployTask "1" -- "0..*" deployRule : evaluated by
+    reviewTask "1" -- "0..*" deployRule : evaluated by
+    analysisTask "1" -- "0..*" accessRule : evaluated by
+    
+    deployTask "1" -- "1..*" decision1 : has
+    reviewTask "1" -- "1..*" decision2 : has
+    
+    deployTask "1" -- "1" anomalyDet1 : checked by
+    analysisTask "1" -- "1" anomalyDet1 : checked by
