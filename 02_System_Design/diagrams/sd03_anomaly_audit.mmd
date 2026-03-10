@@ -1,0 +1,42 @@
+sequenceDiagram
+    title SD-03: Anomaly Detection & Audit Report Generation
+
+    actor Auditor
+    participant AuditAPI as Audit API (/api/audit)
+    participant AnomalyDet as Anomaly Detector
+    participant AuditSvc as Audit Service
+    participant DB as Database
+    participant ReportGen as Report Generator
+
+    Note over AnomalyDet,DB: Continuous background anomaly monitoring
+
+    AnomalyDet->>DB: Fetch recent task records
+    DB-->>AnomalyDet: Return task feature vectors
+    AnomalyDet->>AnomalyDet: Run Isolation Forest scoring
+    AnomalyDet->>AnomalyDet: Run One-Class SVM scoring
+    AnomalyDet->>AnomalyDet: Ensemble score > threshold (0.75)?
+
+    alt Anomaly Detected
+        AnomalyDet->>DB: UPDATE task risk_level=CRITICAL
+        AnomalyDet->>AuditSvc: Log ANOMALY_DETECTED event
+        AuditSvc->>DB: INSERT audit_log
+        AnomalyDet->>AuditSvc: Trigger escalation notification
+    end
+
+    Note over Auditor,DB: Auditor requests compliance report
+
+    Auditor->>AuditAPI: GET /api/audit/logs?date_range=today
+    AuditAPI->>DB: Query audit_logs with filters
+    DB-->>AuditAPI: Return filtered audit records
+    AuditAPI-->>Auditor: 200 OK {audit_logs: [...]}
+
+    Auditor->>AuditAPI: POST /api/audit/report/generate
+    AuditAPI->>AuditSvc: generate_compliance_report()
+    AuditSvc->>DB: Aggregate task stats by status, risk, agent
+    DB-->>AuditSvc: Return aggregated data
+    AuditSvc->>ReportGen: Build report {tasks, violations, agents}
+    ReportGen->>ReportGen: Format report data
+    ReportGen-->>AuditSvc: Report object
+    AuditSvc->>DB: INSERT audit_log (REPORT_GENERATED)
+    AuditSvc-->>AuditAPI: Report ready
+    AuditAPI-->>Auditor: 200 OK {report_id, report_data, date}

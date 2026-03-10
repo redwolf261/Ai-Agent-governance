@@ -1,0 +1,85 @@
+flowchart TD
+    title([Activity Diagram: Task Submission & Governance Flow])
+
+    Start([🟢 Start: Agent Submits Task]) --> ValidateAuth
+
+    ValidateAuth{Validate JWT Token}
+    ValidateAuth -- Invalid --> AuthFail([❌ Return 401 Unauthorized])
+    ValidateAuth -- Valid --> CheckAgent
+
+    CheckAgent{Check Agent Status}
+    CheckAgent -- SUSPENDED --> AgentFail([❌ Return 403 - Agent Suspended])
+    CheckAgent -- ACTIVE --> CreateTask
+
+    CreateTask[Create Task Record in DB\nstatus = PENDING] --> LogCreated
+    LogCreated[Log TASK_CREATED in Audit Log] --> ExtractFeatures
+
+    ExtractFeatures[Extract Task Feature Vector\ntask_type, input_data, agent_trust] --> RunML
+
+    RunML[Run ML Anomaly Detection\nIsolation Forest + One-Class SVM] --> ScoreTask
+    ScoreTask[Compute Ensemble Risk Score\n0.0 - 1.0] --> ClassifyRisk
+
+    ClassifyRisk{Risk Level?}
+    ClassifyRisk -- Score < 0.4 --> LowRisk[Set risk_level = LOW]
+    ClassifyRisk -- 0.4–0.6 --> MedRisk[Set risk_level = MEDIUM]
+    ClassifyRisk -- 0.6–0.8 --> HighRisk[Set risk_level = HIGH]
+    ClassifyRisk -- Score > 0.8 --> CritRisk[Set risk_level = CRITICAL]
+
+    LowRisk --> FetchRules
+    MedRisk --> FetchRules
+    HighRisk --> FetchRules
+    CritRisk --> FetchRules
+
+    FetchRules[Fetch Active Governance Rules\nOrdered by Priority DESC] --> EvalLoop
+
+    EvalLoop{More Rules to Evaluate?}
+    EvalLoop -- Yes --> CheckRule
+    CheckRule{Rule Condition Matches Task?}
+    CheckRule -- No --> EvalLoop
+    CheckRule -- Yes --> LogTrigger
+
+    LogTrigger[Log RULE_TRIGGERED in Audit Log] --> GetAction
+    GetAction{Rule Action?}
+
+    GetAction -- BLOCK --> BlockTask
+    GetAction -- FLAG --> FlagTask
+    GetAction -- REQUIRE_APPROVAL --> PendingApproval
+    GetAction -- ALLOW --> EvalLoop
+    GetAction -- LOG_ONLY --> EvalLoop
+    GetAction -- ESCALATE --> EscalateTask
+
+    BlockTask[Set status = BLOCKED] --> LogBlocked
+    LogBlocked[Log TASK_BLOCKED] --> ReturnBlocked([🔴 Return BLOCKED to caller])
+
+    FlagTask[Set status = FLAGGED] --> LogFlagged
+    LogFlagged[Log TASK_FLAGGED] --> ReturnFlagged([🟡 Return FLAGGED - Awaiting Review])
+
+    PendingApproval[Set status = PENDING_APPROVAL] --> NotifyManager
+    NotifyManager[Notify Manager for Manual Review] --> ReturnPending([🟡 Return PENDING_APPROVAL])
+
+    EscalateTask[Create Escalation Record] --> NotifyAdmin
+    NotifyAdmin[Notify Admin] --> LogEscalate[Log ESCALATION_CREATED] --> ReturnEscalated([🟡 Return ESCALATED])
+
+    EvalLoop -- No more rules --> ApproveTask
+    ApproveTask[Set status = APPROVED] --> LogApproved
+    LogApproved[Log TASK_APPROVED] --> ExecuteTask
+
+    ExecuteTask[Execute Task\nRecord start_time] --> TaskRunning{Task Execution}
+    TaskRunning -- Success --> CompleteTask
+    TaskRunning -- Failure --> FailTask
+
+    CompleteTask[Set status = COMPLETED\nRecord execution_time_ms] --> LogComplete
+    LogComplete[Log TASK_COMPLETED] --> End1([🟢 End: Task Complete])
+
+    FailTask[Set status = FAILED\nRecord error] --> LogFail
+    LogFail[Log TASK_FAILED] --> End2([🔴 End: Task Failed])
+
+    style Start fill:#4caf50,color:#fff
+    style AuthFail fill:#f44336,color:#fff
+    style AgentFail fill:#f44336,color:#fff
+    style ReturnBlocked fill:#f44336,color:#fff
+    style ReturnFlagged fill:#ff9800,color:#fff
+    style ReturnPending fill:#ff9800,color:#fff
+    style ReturnEscalated fill:#ff9800,color:#fff
+    style End1 fill:#4caf50,color:#fff
+    style End2 fill:#f44336,color:#fff

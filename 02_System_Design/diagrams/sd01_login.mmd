@@ -1,0 +1,32 @@
+sequenceDiagram
+    title SD-01: User Login & Authentication Flow
+
+    actor User
+    participant Frontend as Dashboard (Frontend)
+    participant AuthAPI as Auth API (/api/auth)
+    participant DB as Database
+    participant AuditSvc as Audit Service
+
+    User->>Frontend: Enter username & password
+    Frontend->>AuthAPI: POST /api/auth/login {username, password}
+    AuthAPI->>DB: Query user by username
+    DB-->>AuthAPI: Return user record
+
+    alt User not found
+        AuthAPI-->>Frontend: 401 Unauthorized - User not found
+        Frontend-->>User: Show error message
+    else User found
+        AuthAPI->>AuthAPI: bcrypt.verify(password, hash)
+        alt Password incorrect
+            AuthAPI-->>Frontend: 401 Unauthorized - Invalid credentials
+            Frontend-->>User: Show error message
+        else Password correct
+            AuthAPI->>AuthAPI: Generate JWT token (expires 24h)
+            AuthAPI->>AuditSvc: Log USER_LOGIN event
+            AuditSvc->>DB: INSERT audit_log (action=USER_LOGIN)
+            DB-->>AuditSvc: Confirm
+            AuthAPI-->>Frontend: 200 OK {token, user_info}
+            Frontend->>Frontend: Store JWT in localStorage
+            Frontend-->>User: Redirect to Dashboard
+        end
+    end

@@ -1,0 +1,50 @@
+graph TB
+    subgraph "Developer / User Machines"
+        dev["💻 Developer Workstation\nChrome / Firefox\nHTTP Client (Postman/curl)"]
+        ai_agent["🤖 AI Agent Instance\n(External HTTP Client)"]
+    end
+
+    subgraph "Application Server"
+        subgraph "Flask Application (Python 3.12)"
+            flask_app["Flask App\napp.py : Port 5000\nHost: 0.0.0.0"]
+            static_files["Static Files\nstatic/index.html\n(Dashboard UI)"]
+        end
+
+        subgraph "Runtime Artifacts"
+            ml_models["ML Model Files\nmodels/*.joblib"]
+            config_file["config.py\n(ENV-based config)"]
+        end
+    end
+
+    subgraph "Database Server"
+        db_file[("SQLite Database\nai_governance.db\nLocal File System")]
+    end
+
+    subgraph "Version Control"
+        github["GitHub Repository\ngithub.com/redwolf261\n/Ai-Agent-governance"]
+    end
+
+    %% Connections
+    dev -->|"HTTP :5000 (REST API)"| flask_app
+    dev -->|"HTTP :5000/ (Dashboard)"| static_files
+    ai_agent -->|"HTTP :5000/api/tasks"| flask_app
+    ai_agent -->|"HTTP :5000/api/agents"| flask_app
+
+    flask_app -->|"SQLAlchemy ORM"| db_file
+    flask_app -->|"Load .joblib models"| ml_models
+    flask_app -->|"Read config"| config_file
+    static_files -->|"Served by Flask"| flask_app
+
+    github -->|"git pull / deploy"| flask_app
+
+    classDef userNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef appNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef dbNode fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef vcsNode fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef mlNode fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+
+    class dev,ai_agent userNode
+    class flask_app,static_files appNode
+    class db_file dbNode
+    class github vcsNode
+    class ml_models,config_file mlNode

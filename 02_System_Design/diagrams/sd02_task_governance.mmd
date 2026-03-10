@@ -1,0 +1,65 @@
+sequenceDiagram
+    title SD-02: Task Submission & Governance Evaluation
+
+    actor Engineer
+    participant TaskAPI as Task API (/api/tasks)
+    participant AuthMW as Auth Middleware
+    participant GovEngine as Governance Engine
+    participant AnomalyDet as Anomaly Detector
+    participant AuditSvc as Audit Service
+    participant DB as Database
+
+    Engineer->>TaskAPI: POST /api/tasks {task_type, title, input_data, agent_id}
+    TaskAPI->>AuthMW: Validate JWT token
+    AuthMW-->>TaskAPI: Token valid, role=ENGINEER
+
+    TaskAPI->>DB: Check agent status (agent_id)
+    DB-->>TaskAPI: Agent status = ACTIVE
+
+    alt Agent is SUSPENDED
+        TaskAPI-->>Engineer: 403 Forbidden - Agent is suspended
+    else Agent is ACTIVE
+        TaskAPI->>DB: INSERT task (status=PENDING)
+        DB-->>TaskAPI: task_id created
+        TaskAPI->>AuditSvc: Log TASK_CREATED event
+        AuditSvc->>DB: INSERT audit_log
+
+        TaskAPI->>AnomalyDet: compute_risk_score(task_features)
+        AnomalyDet->>AnomalyDet: Extract features (task_type, input_data)
+        AnomalyDet->>AnomalyDet: Run Isolation Forest model
+        AnomalyDet->>AnomalyDet: Run One-Class SVM model
+        AnomalyDet-->>TaskAPI: {risk_score: 0.72, risk_level: HIGH}
+
+        TaskAPI->>GovEngine: evaluate_task(task, rules)
+        GovEngine->>DB: Fetch active rules (ordered by priority)
+        DB-->>GovEngine: Return governance rules
+
+        loop For each rule (priority order)
+            GovEngine->>GovEngine: Check rule condition against task
+            alt Rule triggered
+                GovEngine->>AuditSvc: Log RULE_TRIGGERED event
+                AuditSvc->>DB: INSERT audit_log
+                alt Rule action = BLOCK
+                    GovEngine-->>TaskAPI: Action=BLOCK, rule=rule_id
+                else Rule action = FLAG
+                    GovEngine-->>TaskAPI: Action=FLAG, rule=rule_id
+                else Rule action = REQUIRE_APPROVAL
+                    GovEngine-->>TaskAPI: Action=REQUIRE_APPROVAL
+                end
+            end
+        end
+
+        alt Task BLOCKED
+            TaskAPI->>DB: UPDATE task status=BLOCKED
+            TaskAPI->>AuditSvc: Log TASK_BLOCKED
+            TaskAPI-->>Engineer: 200 OK {status: BLOCKED, reason: rule violation}
+        else Task FLAGGED
+            TaskAPI->>DB: UPDATE task status=FLAGGED
+            TaskAPI->>AuditSvc: Log TASK_FLAGGED
+            TaskAPI-->>Engineer: 200 OK {status: FLAGGED, requires_review: true}
+        else Task APPROVED
+            TaskAPI->>DB: UPDATE task status=APPROVED
+            TaskAPI->>AuditSvc: Log TASK_APPROVED
+            TaskAPI-->>Engineer: 200 OK {status: APPROVED, task_id: id}
+        end
+    end

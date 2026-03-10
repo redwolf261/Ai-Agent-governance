@@ -1,0 +1,76 @@
+classDiagram
+    class User {
+        -User_Id: string
+        -Name: string
+        -role: string
+        -privilegeae: string
+        +log_in() boolean
+        +access_dashboard() void
+    }
+
+    class AiTask {
+        -task_id: string
+        -agent_id: string
+        -timestamp: datetime
+        -input_data: string
+        -output: string
+        -status: string
+        +log_task() boolean
+        +validate_task() boolean
+    }
+
+    class GovernenceRule {
+        -rule_Id: string
+        -rule_name: string
+        -Description: string
+        -severity: int
+        +Evaluated_task() boolean
+        +flag_violation() void
+    }
+
+    class AuditReport {
+        -report_id: string
+        -generated_id: string
+        -date: datetime
+        -report_data: string
+        +generate_report() void
+        +exportPDF() void
+    }
+
+    class Escalation {
+        -Escalation_id: string
+        -Task_id: string
+        -Escalated_to: string
+        -timestamp: datetime
+        -status: string
+        +escalated_task() void
+        +notify_user() void
+    }
+
+    class Decision {
+        -task: string
+        -decision_path: list~string~
+        -parent_task: string
+        -lineage: string
+        +trace_decision() void
+        +getlineage() list~string~
+    }
+
+    class AnomalyDetection {
+        -detection_id: string
+        -model_type: string
+        -threshold: float
+        +detectionanomly_task() float
+        +compute_risk() float
+    }
+
+    %% Relationships
+    User "1" --> "0..*" AiTask : creates
+    User "1" --> "0..*" AuditReport : generates
+    User "1" --> "0..*" GovernenceRule : defines
+
+    AiTask "0..*" --> "1" AuditReport : logged in
+    AiTask "1" *-- "1" Escalation : triggers
+    AiTask "0..*" --> "1" GovernenceRule : evaluated by
+    AiTask "1" --> "1..*" Decision : has
+    AiTask "1" --> "1" AnomalyDetection : checked by

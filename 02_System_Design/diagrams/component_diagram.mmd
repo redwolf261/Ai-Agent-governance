@@ -1,0 +1,100 @@
+graph TB
+    subgraph "Client Layer"
+        browser["🌐 Web Browser\n(Dashboard HTML/JS)\nPort: 5000"]
+        agent_client["🤖 AI Agent Client\n(HTTP REST calls)"]
+    end
+
+    subgraph "Application Server (Flask)"
+        subgraph "API Layer"
+            auth_api["Auth API\n/api/auth"]
+            agent_api["Agent API\n/api/agents"]
+            task_api["Task API\n/api/tasks"]
+            gov_api["Governance API\n/api/governance"]
+            audit_api["Audit API\n/api/audit"]
+            dash_api["Dashboard API\n/api/dashboard"]
+        end
+
+        subgraph "Service Layer"
+            gov_engine["Governance Engine\nservices/governance_engine.py"]
+            anomaly_svc["Anomaly Detector\nservices/anomaly_detector.py"]
+            audit_svc["Audit Service\nservices/audit_service.py"]
+            agent_svc["Agent Service\nservices/agent_service.py"]
+            task_svc["Task Service\nservices/task_service.py"]
+            adv_gov["Advanced Governance\nservices/advanced_governance_rules.py"]
+        end
+
+        subgraph "Model Layer"
+            user_model["User Model\nmodels/user.py"]
+            agent_model["Agent Model\nmodels/agent.py"]
+            task_model["Task Model\nmodels/task.py"]
+            rule_model["GovernanceRule Model\nmodels/governance_rule.py"]
+            audit_model["AuditLog Model\nmodels/audit_log.py"]
+        end
+    end
+
+    subgraph "Data Layer"
+        db[("SQLite Database\nai_governance.db")]
+    end
+
+    subgraph "ML Model Store"
+        iso_forest["isolation_forest.joblib"]
+        svm_model["one_class_svm.joblib"]
+        scaler["scaler.joblib"]
+    end
+
+    %% Client connections
+    browser -->|HTTP| auth_api
+    browser -->|HTTP| agent_api
+    browser -->|HTTP| task_api
+    browser -->|HTTP| gov_api
+    browser -->|HTTP| audit_api
+    browser -->|HTTP| dash_api
+    agent_client -->|HTTP REST| task_api
+    agent_client -->|HTTP REST| agent_api
+
+    %% API to Service
+    auth_api --> agent_svc
+    agent_api --> agent_svc
+    task_api --> task_svc
+    task_api --> gov_engine
+    task_api --> anomaly_svc
+    gov_api --> gov_engine
+    audit_api --> audit_svc
+    dash_api --> audit_svc
+    dash_api --> agent_svc
+    task_svc --> audit_svc
+    gov_engine --> audit_svc
+    gov_engine --> adv_gov
+
+    %% Service to Model
+    agent_svc --> agent_model
+    task_svc --> task_model
+    gov_engine --> rule_model
+    audit_svc --> audit_model
+    agent_svc --> user_model
+
+    %% Model to DB
+    user_model --> db
+    agent_model --> db
+    task_model --> db
+    rule_model --> db
+    audit_model --> db
+
+    %% ML Models
+    anomaly_svc --> iso_forest
+    anomaly_svc --> svm_model
+    anomaly_svc --> scaler
+
+    classDef clientStyle fill:#e3f2fd,stroke:#1565c0
+    classDef apiStyle fill:#e8f5e9,stroke:#2e7d32
+    classDef serviceStyle fill:#fff3e0,stroke:#e65100
+    classDef modelStyle fill:#f3e5f5,stroke:#6a1b9a
+    classDef dataStyle fill:#fce4ec,stroke:#880e4f
+    classDef mlStyle fill:#fff9c4,stroke:#f57f17
+
+    class browser,agent_client clientStyle
+    class auth_api,agent_api,task_api,gov_api,audit_api,dash_api apiStyle
+    class gov_engine,anomaly_svc,audit_svc,agent_svc,task_svc,adv_gov serviceStyle
+    class user_model,agent_model,task_model,rule_model,audit_model modelStyle
+    class db dataStyle
+    class iso_forest,svm_model,scaler mlStyle

@@ -1,0 +1,50 @@
+stateDiagram-v2
+    title: State Diagram - AI Task Lifecycle
+
+    [*] --> PENDING : Task Submitted
+
+    PENDING --> RUNNING : Governance APPROVED\nAgent executes task
+    PENDING --> BLOCKED : Governance Rule Action = BLOCK
+    PENDING --> FLAGGED : Governance Rule Action = FLAG
+    PENDING --> APPROVED : Manual approval by Admin/Manager
+    PENDING --> REJECTED : Manual rejection by Admin/Manager
+
+    RUNNING --> COMPLETED : Execution successful
+    RUNNING --> FAILED : Execution error / timeout
+    RUNNING --> FLAGGED : Anomaly detected mid-execution
+
+    FLAGGED --> APPROVED : Admin reviews and approves
+    FLAGGED --> REJECTED : Admin reviews and rejects
+    FLAGGED --> BLOCKED : Admin escalates to block
+
+    APPROVED --> RUNNING : Task execution begins
+    APPROVED --> [*] : Task archived
+
+    COMPLETED --> [*] : Task archived
+
+    BLOCKED --> [*] : Task archived (violation recorded)
+
+    FAILED --> PENDING : Retry submitted
+    FAILED --> [*] : Task archived
+
+    REJECTED --> [*] : Task archived
+
+    note right of PENDING
+        Initial state after submission.
+        Awaiting governance evaluation.
+    end note
+
+    note right of FLAGGED
+        Requires human review.
+        Rule triggered but not hard-blocked.
+    end note
+
+    note right of RUNNING
+        Agent actively executing.
+        Anomaly monitoring active.
+    end note
+
+    note right of COMPLETED
+        Success. Execution time recorded.
+        Audit log entry created.
+    end note
