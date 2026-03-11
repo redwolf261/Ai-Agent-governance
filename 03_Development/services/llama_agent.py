@@ -483,6 +483,7 @@ class LlamaGovernanceTester:
         Returns:
             Test results summary
         """
+        import uuid as _uuid
         from services.governance_engine import GovernanceEngine
         from services.task_service import TaskService
         from services.agent_service import AgentService
@@ -495,10 +496,13 @@ class LlamaGovernanceTester:
         # Create test agent
         test_agent = LlamaTestAgent(agent_type)
         
-        # Register agent in system
+        # Register agent in system — use unique name to avoid collisions on re-runs
+        agent_name = f"Llama-{agent_type.title()}-{_uuid.uuid4().hex[:6]}"
+        valid_types = ["code_generator", "code_reviewer", "data_analyst", "deployment", "general"]
+        normalized_type = agent_type if agent_type in valid_types else "general"
         agent = agent_service.register_agent(
-            name=f"Llama-{agent_type.title()}-Tester",
-            agent_type=agent_type if agent_type in ["code_generator", "code_reviewer"] else "general",
+            name=agent_name,
+            agent_type=normalized_type,
             description=f"LLM-powered test agent ({agent_type})"
         )
         
@@ -517,7 +521,7 @@ class LlamaGovernanceTester:
         
         for task_data in tasks:
             try:
-                result = task_service.create_task(
+                task_obj, evaluation = task_service.create_task(
                     agent_id=agent.id,
                     task_type=task_data.get("task_type", "code_generation"),
                     title=task_data.get("title", "LLM Test Task"),
@@ -526,17 +530,27 @@ class LlamaGovernanceTester:
                     input_data=task_data.get("input_data", {})
                 )
                 
-                evaluation = result["evaluation"]
-                action = evaluation.get("action", "allow")
+                governance_status = evaluation.get("governance", {}).get("status", "approved")
+                risk_score = evaluation.get("risk_assessment", {}).get("score", 0)
+                violations = evaluation.get("governance", {}).get("triggered_rules", [])
+                
+                # Map governance status to result bucket
+                if governance_status == "blocked":
+                    action = "blocked"
+                elif governance_status in ("flagged", "requires_approval"):
+                    action = "flagged"
+                else:
+                    action = "allowed"
                 
                 results["tasks_tested"] += 1
                 results[action] = results.get(action, 0) + 1
                 
                 results["task_details"].append({
                     "title": task_data.get("title"),
-                    "risk_score": evaluation.get("risk_score", 0),
+                    "risk_score": risk_score,
                     "action": action,
-                    "violations": len(evaluation.get("violations", []))
+                    "governance_status": governance_status,
+                    "violations": len(violations)
                 })
                 
             except Exception as e:

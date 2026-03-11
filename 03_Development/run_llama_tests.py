@@ -148,10 +148,9 @@ def run_governance_test(model: str, num_tasks: int, agent_types: list):
     rules = governance.create_default_rules()
     print_status("Governance Rules", f"{len(rules)} active", "success")
     
-    # Train anomaly detector
+    # Load anomaly detector (models loaded automatically from .joblib)
     detector = AnomalyDetector()
-    detector.train_models(n_samples=200)
-    print_status("Anomaly Detector", "Trained", "success")
+    print_status("Anomaly Detector", "Loaded", "success")
     
     # Initialize tester
     tester = LlamaGovernanceTester(session)
