@@ -4,11 +4,11 @@ Defines rules for AI agent behavior governance
 """
 from sqlalchemy import Column, String, DateTime, Text, Boolean, Integer
 from sqlalchemy import Enum as SQLEnum
-from datetime import datetime
 import uuid
 import enum
 
 from models.database import Base
+from utils.time_utils import utc_now
 
 
 class RuleType(enum.Enum):
@@ -23,6 +23,8 @@ class RuleType(enum.Enum):
     TIME_BASED = "time_based"
     RATE_LIMIT = "rate_limit"
     COMPLIANCE = "compliance"
+    PAYLOAD_SCAN = "payload_scan"
+    CUSTOM = "custom"
 
 
 class RuleAction(enum.Enum):
@@ -85,14 +87,14 @@ class GovernanceRule(Base):
     applies_to_task_types = Column(Text, nullable=True)  # Comma-separated types
     
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     created_by = Column(String(255), nullable=True)
     updated_by = Column(String(255), nullable=True)
     
     # Versioning
     version = Column(Integer, default=1)
-    effective_from = Column(DateTime, default=datetime.utcnow)
+    effective_from = Column(DateTime, default=utc_now)
     effective_until = Column(DateTime, nullable=True)
     
     # Action Configuration
@@ -142,7 +144,7 @@ class GovernanceRule(Base):
     
     def is_currently_effective(self) -> bool:
         """Check if rule is currently in effect"""
-        now = datetime.utcnow()
+        now = utc_now()
         if self.effective_from and now < self.effective_from:
             return False
         if self.effective_until and now > self.effective_until:

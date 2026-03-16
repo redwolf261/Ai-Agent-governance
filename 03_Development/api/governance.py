@@ -18,6 +18,11 @@ def list_rules():
     db = SessionLocal()
     try:
         rules = db.query(GovernanceRule).order_by(GovernanceRule.priority).all()
+
+        # Keep UX smooth on a fresh DB: auto-seed defaults on first read.
+        if not rules:
+            GovernanceEngine(db).create_default_rules()
+            rules = db.query(GovernanceRule).order_by(GovernanceRule.priority).all()
         
         return jsonify({
             "success": True,

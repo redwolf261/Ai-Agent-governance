@@ -354,6 +354,42 @@ class TestAPIEndpoints:
         assert list_response.status_code == 200
         assert list_data["count"] >= 1
 
+    def test_get_task_decision_trace(self, client):
+        agent_response = client.post(
+            "/api/agents",
+            data=json.dumps(
+                {
+                    "name": "Trace API Agent",
+                    "agent_type": "documentation",
+                    "description": "Agent for trace endpoint test",
+                }
+            ),
+            content_type="application/json",
+        )
+        agent_id = json.loads(agent_response.data)["data"]["id"]
+
+        task_response = client.post(
+            "/api/tasks",
+            data=json.dumps(
+                {
+                    "agent_id": agent_id,
+                    "task_type": "documentation",
+                    "title": "Trace Task",
+                    "description": "Task for decision trace endpoint",
+                }
+            ),
+            content_type="application/json",
+        )
+        task_id = json.loads(task_response.data)["data"]["id"]
+
+        trace_response = client.get(f"/api/tasks/{task_id}/decision-trace")
+        trace_data = json.loads(trace_response.data)
+
+        assert trace_response.status_code == 200
+        assert trace_data["success"] is True
+        assert trace_data["data"]["task"]["id"] == task_id
+        assert "timeline" in trace_data["data"]
+
     def test_list_rules_and_init_defaults(self, client):
         init_response = client.post("/api/governance/init-defaults")
         init_data = json.loads(init_response.data)
@@ -372,6 +408,14 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         assert data["success"] is True
         assert "agents" in data["data"]
+
+    def test_dashboard_live_alerts(self, client):
+        response = client.get("/api/dashboard/live-alerts?limit=5&days=2")
+        data = json.loads(response.data)
+
+        assert response.status_code == 200
+        assert data["success"] is True
+        assert "data" in data
 
     def test_audit_logs(self, client):
         response = client.get("/api/audit/logs")
@@ -401,6 +445,8 @@ class TestAgentService:
 
         assert "total_tasks" in stats
         assert "task_type_distribution" in stats
+        assert "drift" in stats
+        assert "behavior_baseline" in stats
 
 
 class TestTaskService:
@@ -431,6 +477,23 @@ class TestTaskService:
 
         rejected = service.reject_task(task.id, reviewer="manager-1", reason="Rejected for policy reasons")
         assert rejected.status == TaskStatus.REJECTED
+
+    def test_get_task_decision_trace(self, session, sample_agent):
+        service = TaskService(session)
+        task, _ = service.create_task(
+            agent_id=sample_agent.id,
+            task_type="documentation",
+            title="Trace Service Task",
+            description="Task for decision trace service method",
+        )
+
+        trace = service.get_task_decision_trace(task.id)
+
+        assert trace["task"]["id"] == task.id
+        assert "decision" in trace
+        assert "explainability" in trace
+        assert "top_risk_factors" in trace["explainability"]
+        assert isinstance(trace["timeline"], list)
 
 
 class TestAuditService:

@@ -4,31 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Agent Governance Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3f37c9;
-            --success-color: #4cc9f0;
-            --warning-color: #f8961e;
-            --danger-color: #f72585;
-            --dark-color: #1a1a2e;
-            --light-bg: #f8f9fa;
+            --bg-base: #f2f6f8;
+            --panel-bg: #ffffff;
+            --ink-strong: #0c1f2c;
+            --ink-soft: #5d6f79;
+            --brand-main: #0f766e;
+            --brand-accent: #0ea5a2;
+            --warning: #d97706;
+            --danger: #b42318;
+            --ok: #15803d;
+            --primary-color: var(--brand-main);
+            --secondary-color: var(--brand-accent);
+            --success-color: var(--ok);
+            --warning-color: var(--warning);
+            --danger-color: var(--danger);
+            --dark-color: var(--ink-strong);
+            --light-bg: var(--bg-base);
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --shadow-panel: 0 10px 26px rgba(12, 31, 44, 0.08);
         }
         
         body {
-            background-color: var(--light-bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at 15% 10%, #d9edea 0%, transparent 35%),
+                        radial-gradient(circle at 85% 20%, #fce8d3 0%, transparent 40%),
+                        var(--bg-base);
+            font-family: 'Manrope', 'Segoe UI', Tahoma, sans-serif;
+            color: var(--ink-strong);
+            min-height: 100vh;
         }
         
         .sidebar {
-            background: linear-gradient(180deg, var(--dark-color) 0%, #16213e 100%);
+            background: linear-gradient(165deg, #0d2836 0%, #0f3f56 100%);
             min-height: 100vh;
             position: fixed;
             width: 260px;
             padding-top: 20px;
+            z-index: 1100;
+            transition: transform 0.3s ease;
         }
         
         .sidebar .nav-link {
@@ -52,18 +73,21 @@
         .main-content {
             margin-left: 260px;
             padding: 30px;
+            transition: margin-left 0.3s ease;
         }
         
         .stat-card {
-            background: #fff;
-            border-radius: 12px;
+            background: var(--panel-bg);
+            border-radius: var(--radius-lg);
             padding: 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            transition: transform 0.3s ease;
+            box-shadow: var(--shadow-panel);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            animation: riseIn 0.45s ease both;
         }
         
         .stat-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 36px rgba(12, 31, 44, 0.14);
         }
         
         .stat-card .stat-icon {
@@ -78,48 +102,52 @@
         
         .stat-card .stat-value {
             font-size: 32px;
-            font-weight: 700;
-            color: var(--dark-color);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            font-family: 'Space Grotesk', 'Manrope', sans-serif;
+            color: var(--ink-strong);
         }
         
         .stat-card .stat-label {
-            color: #6c757d;
+            color: var(--ink-soft);
             font-size: 14px;
         }
         
         .chart-card {
-            background: #fff;
-            border-radius: 12px;
+            background: var(--panel-bg);
+            border-radius: var(--radius-lg);
             padding: 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-panel);
         }
         
         .chart-card h5 {
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 20px;
-            color: var(--dark-color);
+            color: var(--ink-strong);
+            font-family: 'Space Grotesk', 'Manrope', sans-serif;
         }
         
         .activity-item {
             padding: 12px 16px;
             border-left: 3px solid transparent;
             transition: all 0.3s ease;
+            border-radius: 10px;
         }
         
         .activity-item:hover {
-            background-color: var(--light-bg);
+            background-color: #f2f6f8;
         }
         
         .activity-item.warning {
-            border-left-color: var(--warning-color);
+            border-left-color: var(--warning);
         }
         
         .activity-item.danger {
-            border-left-color: var(--danger-color);
+            border-left-color: var(--danger);
         }
         
         .activity-item.success {
-            border-left-color: var(--success-color);
+            border-left-color: var(--ok);
         }
         
         .risk-badge {
@@ -141,11 +169,12 @@
             padding: 0 20px 30px;
             display: flex;
             align-items: center;
+            font-family: 'Space Grotesk', 'Manrope', sans-serif;
         }
         
         .logo i {
             margin-right: 10px;
-            color: var(--success-color);
+            color: #67e8f9;
         }
         
         .table-modern {
@@ -154,7 +183,7 @@
         }
         
         .table-modern thead {
-            background: var(--primary-color);
+            background: linear-gradient(135deg, var(--brand-main), var(--brand-accent));
             color: #fff;
         }
         
@@ -165,10 +194,122 @@
         }
         
         .alert-panel {
-            background: linear-gradient(135deg, var(--danger-color), #b5179e);
+            background: linear-gradient(135deg, #9f1239, #be123c);
             color: #fff;
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
             padding: 20px;
+        }
+
+        .page-kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--ink-soft);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .pill-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e0f2f1;
+            color: #0f766e;
+            border: 1px solid #99f6e4;
+            border-radius: 999px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .pill-live::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #14b8a6;
+            animation: pulse 1.6s infinite;
+        }
+
+        .trace-card {
+            border: 1px solid #dbe5ea;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            background: #fcfeff;
+        }
+
+        .trace-meta {
+            color: var(--ink-soft);
+            font-size: 13px;
+        }
+
+        .trace-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .trace-event {
+            border-left: 3px solid #b9cad4;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .trace-event.warning {
+            border-left-color: var(--warning);
+        }
+
+        .trace-event.danger {
+            border-left-color: var(--danger);
+        }
+
+        .trace-event.info {
+            border-left-color: var(--brand-main);
+        }
+
+        .factor-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #d8e5ea;
+            background: #f7fbfd;
+            border-radius: 999px;
+            padding: 6px 12px;
+            margin: 4px 6px 4px 0;
+            font-size: 12px;
+            color: var(--ink-strong);
+        }
+
+        .alert-item {
+            border: 1px solid #dbe5ea;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+
+        .alert-item.is-acknowledged {
+            opacity: 0.65;
+            background: #f8fbfc;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 1200;
+            background: linear-gradient(135deg, var(--brand-main), var(--brand-accent));
+            color: #fff;
+            border: 0;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            box-shadow: 0 8px 18px rgba(15, 118, 110, 0.35);
         }
         
         .loading-spinner {
@@ -188,47 +329,104 @@
         }
         
         .section-header h4 {
-            font-weight: 600;
-            color: var(--dark-color);
+            font-weight: 700;
+            color: var(--ink-strong);
             margin: 0;
+            font-family: 'Space Grotesk', 'Manrope', sans-serif;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.55; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.25); }
+        }
+
+        @keyframes riseIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .row.g-4.mb-4 .col-md-3:nth-child(1) .stat-card { animation-delay: 0.04s; }
+        .row.g-4.mb-4 .col-md-3:nth-child(2) .stat-card { animation-delay: 0.1s; }
+        .row.g-4.mb-4 .col-md-3:nth-child(3) .stat-card { animation-delay: 0.16s; }
+        .row.g-4.mb-4 .col-md-3:nth-child(4) .stat-card { animation-delay: 0.22s; }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 72px 16px 24px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stat-card,
+            .chart-card {
+                padding: 16px;
+            }
+
+            .stat-card .stat-value {
+                font-size: 28px;
+            }
         }
     </style>
 </head>
 <body>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation">
+        <i class="bi bi-list"></i>
+    </button>
+
     <!-- Sidebar -->
     <nav class="sidebar">
         <div class="logo">
             <i class="bi bi-shield-check"></i>
-            AI Governance
+            Governance Ops
         </div>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="#" onclick="showSection('dashboard')">
-                    <i class="bi bi-speedometer2"></i> Dashboard
+                <a class="nav-link active" href="#" data-section="dashboard" onclick="showSection('dashboard')">
+                    <i class="bi bi-speedometer2"></i> Overview
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('agents')">
-                    <i class="bi bi-robot"></i> Agents
+                <a class="nav-link" href="#" data-section="trace" onclick="showSection('trace')">
+                    <i class="bi bi-diagram-3"></i> Decision Trace
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('tasks')">
-                    <i class="bi bi-list-task"></i> Tasks
+                <a class="nav-link" href="#" data-section="agents" onclick="showSection('agents')">
+                    <i class="bi bi-robot"></i> Agent Insights
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('governance')">
+                <a class="nav-link" href="#" data-section="tasks" onclick="showSection('tasks')">
+                    <i class="bi bi-list-task"></i> Live Governance
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="governance" onclick="showSection('governance')">
                     <i class="bi bi-shield-lock"></i> Governance Rules
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('audit')">
+                <a class="nav-link" href="#" data-section="audit" onclick="showSection('audit')">
                     <i class="bi bi-journal-text"></i> Audit Logs
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('reports')">
+                <a class="nav-link" href="#" data-section="reports" onclick="showSection('reports')">
                     <i class="bi bi-bar-chart"></i> Reports
                 </a>
             </li>
@@ -246,10 +444,16 @@
         <!-- Dashboard Section -->
         <section id="section-dashboard">
             <div class="section-header">
-                <h4><i class="bi bi-speedometer2 me-2"></i>Dashboard Overview</h4>
+                <div>
+                    <div class="page-kicker">Evaluator View</div>
+                    <h4><i class="bi bi-speedometer2 me-2"></i>Governance Overview</h4>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="pill-live">Live Monitoring</span>
                 <button class="btn btn-outline-primary btn-sm" onclick="loadDashboard()">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
+                </div>
             </div>
             
             <!-- Stats Cards -->
@@ -339,6 +543,64 @@
                         <h5><i class="bi bi-flag me-2"></i>Flagged Tasks Requiring Review</h5>
                         <div id="flagged-tasks" style="max-height: 300px; overflow-y: auto;">
                             <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="chart-card mt-4">
+                        <h5><i class="bi bi-bell me-2"></i>Live Alerts Inbox</h5>
+                        <div id="live-alert-feed" style="max-height: 280px; overflow-y: auto;">
+                            <p class="text-muted">Loading alerts...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Decision Trace Section -->
+        <section id="section-trace" style="display: none;">
+            <div class="section-header">
+                <div>
+                    <div class="page-kicker">Explainability</div>
+                    <h4><i class="bi bi-diagram-3 me-2"></i>Decision Trace Explorer</h4>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadDecisionTraceSection()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-4">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-list-check me-2"></i>Select Task</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Task</label>
+                            <select class="form-select" id="trace-task-select" onchange="loadDecisionTrace()">
+                                <option value="">Select a task to inspect...</option>
+                            </select>
+                        </div>
+                        <div class="trace-card">
+                            <div id="trace-task-summary" class="trace-meta">No task selected.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-journal-richtext me-2"></i>Why This Decision Happened</h5>
+                        <div class="trace-card mb-3">
+                            <div class="fw-semibold mb-2">Governance Rationale</div>
+                            <div id="trace-rationale" class="trace-meta">Select a task to view governance rationale.</div>
+                        </div>
+
+                        <div class="trace-card mb-3">
+                            <div class="fw-semibold mb-2">Risk Contributors</div>
+                            <div id="trace-risk-factors" class="trace-meta">No explainability data available yet.</div>
+                        </div>
+
+                        <div class="trace-card">
+                            <div class="fw-semibold mb-2">Audit Timeline</div>
+                            <div id="trace-timeline" class="trace-timeline">
+                                <div class="trace-meta">No events loaded.</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -513,6 +775,8 @@
         </section>
     </main>
 
+    <div class="toast-container position-fixed top-0 end-0 p-3" id="live-toast-host" style="z-index: 1300;"></div>
+
     <!-- Add Agent Modal -->
     <div class="modal fade" id="addAgentModal" tabindex="-1">
         <div class="modal-dialog">
@@ -616,10 +880,14 @@
         // Chart instances
         let activityChart = null;
         let riskChart = null;
+        let liveRefreshTimer = null;
+        let latestActivityId = null;
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboard();
+            loadDecisionTraceTasks();
+            startLiveRefresh();
             
             // Set default date range for reports
             const today = new Date();
@@ -627,6 +895,82 @@
             document.getElementById('report-end-date').value = today.toISOString().split('T')[0];
             document.getElementById('report-start-date').value = weekAgo.toISOString().split('T')[0];
         });
+
+        function startLiveRefresh() {
+            if (liveRefreshTimer) {
+                clearInterval(liveRefreshTimer);
+            }
+
+            liveRefreshTimer = setInterval(async () => {
+                const visibleSection = document.querySelector('main section[style*="display: block"]')?.id;
+                if (visibleSection === 'section-dashboard') {
+                    loadDashboard();
+                } else if (visibleSection === 'section-trace') {
+                    const selector = document.getElementById('trace-task-select');
+                    if (selector && selector.value) {
+                        loadDecisionTrace();
+                    }
+                }
+
+                pollLiveNotification();
+            }, 20000);
+        }
+
+        async function pollLiveNotification() {
+            try {
+                const response = await fetch(API_BASE + '/dashboard/recent-activity?limit=1');
+                const data = await response.json();
+                if (!data.success || !data.data.length) {
+                    return;
+                }
+
+                const latest = data.data[0];
+                if (!latestActivityId) {
+                    latestActivityId = latest.id;
+                    return;
+                }
+
+                if (latest.id !== latestActivityId) {
+                    latestActivityId = latest.id;
+                    showLiveToast(latest);
+                }
+            } catch (error) {
+                console.error('Live notification poll failed:', error);
+            }
+        }
+
+        function showLiveToast(activity) {
+            const host = document.getElementById('live-toast-host');
+            const severityClass = activity.severity === 'critical' || activity.severity === 'error'
+                ? 'text-bg-danger'
+                : (activity.severity === 'warning' ? 'text-bg-warning' : 'text-bg-primary');
+            const toastId = 'toast-' + Date.now();
+
+            const html = `
+                <div id="${toastId}" class="toast ${severityClass}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="6000">
+                    <div class="toast-header">
+                        <i class="bi bi-broadcast me-2"></i>
+                        <strong class="me-auto">Live Governance Alert</strong>
+                        <small>${new Date(activity.timestamp).toLocaleTimeString()}</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${activity.action.replace(/_/g, ' ')} on ${activity.entity_type}
+                    </div>
+                </div>
+            `;
+
+            host.insertAdjacentHTML('beforeend', html);
+            const element = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(element);
+            toast.show();
+            element.addEventListener('hidden.bs.toast', () => element.remove());
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('open');
+        }
         
         // Section Navigation
         function showSection(section) {
@@ -634,26 +978,146 @@
             document.getElementById('section-' + section).style.display = 'block';
             
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            event.target.closest('.nav-link').classList.add('active');
+            const activeLink = document.querySelector(`.nav-link[data-section="${section}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+
+            if (window.innerWidth <= 992) {
+                document.querySelector('.sidebar').classList.remove('open');
+            }
             
             // Load section data
             switch(section) {
                 case 'dashboard': loadDashboard(); break;
+                case 'trace': loadDecisionTraceSection(); break;
                 case 'agents': loadAgents(); break;
                 case 'tasks': loadTasks(); break;
                 case 'governance': loadRules(); break;
                 case 'audit': loadAuditLogs(); break;
             }
         }
+
+        async function loadDecisionTraceSection() {
+            await loadDecisionTraceTasks();
+            const selector = document.getElementById('trace-task-select');
+            if (selector.value) {
+                await loadDecisionTrace();
+            }
+        }
+
+        async function loadDecisionTraceTasks() {
+            try {
+                const response = await fetch(API_BASE + '/tasks?limit=50');
+                const data = await response.json();
+
+                if (!data.success) return;
+
+                const selector = document.getElementById('trace-task-select');
+                const currentValue = selector.value;
+                const options = ['<option value="">Select a task to inspect...</option>'];
+
+                data.data.forEach(task => {
+                    const created = task.created_at ? new Date(task.created_at).toLocaleString() : '-';
+                    options.push(`<option value="${task.id}">${task.title} | ${task.status} | ${created}</option>`);
+                });
+
+                selector.innerHTML = options.join('');
+                if (currentValue) {
+                    selector.value = currentValue;
+                }
+            } catch (error) {
+                console.error('Error loading decision trace tasks:', error);
+            }
+        }
+
+        async function loadDecisionTrace() {
+            const taskId = document.getElementById('trace-task-select').value;
+            if (!taskId) {
+                document.getElementById('trace-task-summary').textContent = 'No task selected.';
+                document.getElementById('trace-rationale').textContent = 'Select a task to view governance rationale.';
+                document.getElementById('trace-risk-factors').textContent = 'No explainability data available yet.';
+                document.getElementById('trace-timeline').innerHTML = '<div class="trace-meta">No events loaded.</div>';
+                return;
+            }
+
+            try {
+                const traceRes = await fetch(API_BASE + '/tasks/' + taskId + '/decision-trace').then(r => r.json());
+
+                if (!traceRes.success) {
+                    return;
+                }
+
+                const payload = traceRes.data;
+                const task = payload.task;
+                const traceSummary = [
+                    `Status: ${task.status}`,
+                    `Risk: ${task.risk_level} (${Math.round((task.risk_score || 0) * 100)}%)`,
+                    `Governance: ${task.governance_status || 'pending'}`,
+                    task.reviewed_by ? `Reviewed by: ${task.reviewed_by}` : null
+                ].filter(Boolean).join(' | ');
+
+                document.getElementById('trace-task-summary').textContent = traceSummary;
+                document.getElementById('trace-rationale').textContent =
+                    payload.decision.rationale || payload.decision.governance_notes || 'No explicit rationale stored for this task yet.';
+
+                const factorsHost = document.getElementById('trace-risk-factors');
+                const factors = payload.explainability?.top_risk_factors || [];
+                const methods = payload.explainability?.method_scores || {};
+                if (!factors.length && !Object.keys(methods).length) {
+                    factorsHost.textContent = 'No explainability data available yet.';
+                } else {
+                    const factorChips = factors.map(f => `<span class="factor-chip">${f.name}: ${f.value}</span>`).join('');
+                    const methodChips = Object.entries(methods).map(([k, v]) => `<span class="factor-chip">${k}: ${v}</span>`).join('');
+                    factorsHost.innerHTML = `${factorChips}${methodChips}`;
+                }
+
+                const timelineHost = document.getElementById('trace-timeline');
+
+                if (!payload.timeline || !payload.timeline.length) {
+                    timelineHost.innerHTML = '<div class="trace-meta">No audit events found for this task.</div>';
+                    return;
+                }
+
+                timelineHost.innerHTML = payload.timeline.map(log => {
+                    const severityClass = log.severity === 'critical' || log.severity === 'error'
+                        ? 'danger'
+                        : (log.severity === 'warning' ? 'warning' : 'info');
+
+                    let detailsText = '-';
+                    if (log.details) {
+                        try {
+                            const parsed = typeof log.details === 'string' ? JSON.parse(log.details) : log.details;
+                            detailsText = Object.entries(parsed).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(' | ');
+                        } catch {
+                            detailsText = String(log.details).slice(0, 180);
+                        }
+                    }
+
+                    return `
+                        <div class="trace-event ${severityClass}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="fw-semibold">${log.action.replace(/_/g, ' ')}</div>
+                                <small class="text-muted">${new Date(log.timestamp).toLocaleString()}</small>
+                            </div>
+                            <div class="trace-meta mt-1">${detailsText}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading decision trace:', error);
+            }
+        }
         
         // Dashboard Loading
         async function loadDashboard() {
             try {
-                const [summary, timeline, activity, flagged] = await Promise.all([
+                const [summary, timeline, activity, flagged, alerts] = await Promise.all([
                     fetch(API_BASE + '/dashboard/summary').then(r => r.json()),
                     fetch(API_BASE + '/dashboard/activity-timeline?days=7').then(r => r.json()),
                     fetch(API_BASE + '/dashboard/recent-activity?limit=10').then(r => r.json()),
-                    fetch(API_BASE + '/tasks/flagged?limit=5').then(r => r.json())
+                    fetch(API_BASE + '/tasks/flagged?limit=5').then(r => r.json()),
+                    fetch(API_BASE + '/dashboard/live-alerts?limit=8&days=2').then(r => r.json())
                 ]);
                 
                 if (summary.success) {
@@ -675,6 +1139,10 @@
                 
                 if (flagged.success) {
                     renderFlaggedTasks(flagged.data);
+                }
+
+                if (alerts.success) {
+                    renderLiveAlerts(alerts.data);
                 }
             } catch (error) {
                 console.error('Error loading dashboard:', error);
@@ -788,6 +1256,54 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        function getAcknowledgedAlerts() {
+            try {
+                const raw = localStorage.getItem('acknowledged-alerts');
+                return raw ? JSON.parse(raw) : {};
+            } catch {
+                return {};
+            }
+        }
+
+        function acknowledgeAlert(alertId) {
+            const ack = getAcknowledgedAlerts();
+            ack[alertId] = new Date().toISOString();
+            localStorage.setItem('acknowledged-alerts', JSON.stringify(ack));
+            loadDashboard();
+        }
+
+        function renderLiveAlerts(alerts) {
+            const host = document.getElementById('live-alert-feed');
+            if (!alerts || !alerts.length) {
+                host.innerHTML = '<p class="text-muted text-center">No active alerts</p>';
+                return;
+            }
+
+            const acknowledged = getAcknowledgedAlerts();
+
+            host.innerHTML = alerts.map(alert => {
+                const isAck = Boolean(acknowledged[alert.id]);
+                const badgeClass = alert.severity === 'critical' || alert.severity === 'error'
+                    ? 'bg-danger'
+                    : 'bg-warning text-dark';
+
+                return `
+                    <div class="alert-item ${isAck ? 'is-acknowledged' : ''}">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge ${badgeClass}">${alert.severity}</span>
+                            <small class="text-muted">${new Date(alert.timestamp).toLocaleString()}</small>
+                        </div>
+                        <div class="small fw-semibold mb-1">${alert.action.replace(/_/g, ' ')}</div>
+                        <div class="small text-muted mb-2">${alert.message || '-'} </div>
+                        ${isAck
+                            ? '<span class="small text-success">Acknowledged</span>'
+                            : `<button class="btn btn-sm btn-outline-success" onclick="acknowledgeAlert('${alert.id}')"><i class="bi bi-check2-circle me-1"></i>Acknowledge</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
         }
         
         // Agents

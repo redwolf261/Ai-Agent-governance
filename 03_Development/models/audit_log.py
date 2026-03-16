@@ -5,11 +5,11 @@ Comprehensive logging of all system activities for compliance
 from sqlalchemy import Column, String, DateTime, Text, ForeignKey
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from datetime import datetime
 import uuid
 import enum
 
 from models.database import Base
+from utils.time_utils import utc_now
 
 
 class AuditAction(enum.Enum):
@@ -73,7 +73,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
     action = Column(SQLEnum(AuditAction), nullable=False)
     
     # Entity References

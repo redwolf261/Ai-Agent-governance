@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from models.database import SessionLocal
 from services.audit_service import AuditService
 from models.audit_log import AuditAction
+from utils.time_utils import utc_now
 
 audit_bp = Blueprint('audit', __name__)
 
@@ -142,7 +143,7 @@ def generate_compliance_report():
         if end_date:
             end_date = datetime.fromisoformat(end_date)
         else:
-            end_date = datetime.utcnow()
+            end_date = utc_now()
         
         if start_date:
             start_date = datetime.fromisoformat(start_date)
@@ -203,7 +204,7 @@ def export_audit_logs():
         if end_date:
             end_date = datetime.fromisoformat(end_date)
         else:
-            end_date = datetime.utcnow()
+            end_date = utc_now()
         
         if start_date:
             start_date = datetime.fromisoformat(start_date)

@@ -5,7 +5,6 @@ ML-based detection of abnormal AI agent behavior
 import json
 import numpy as np
 from typing import Dict, List, Any, Tuple, Optional
-from datetime import datetime, timedelta
 import joblib
 import os
 
@@ -15,6 +14,7 @@ from sklearn.svm import OneClassSVM
 
 from models.task import Task, RiskLevel
 from models.agent import Agent
+from utils.time_utils import utc_now
 
 
 class AnomalyDetector:
@@ -91,12 +91,13 @@ class AnomalyDetector:
         self.feature_names.append("input_complexity")
         
         # 3. Time-based features
-        hour_of_day = datetime.utcnow().hour
+        now = utc_now()
+        hour_of_day = now.hour
         is_business_hours = 1.0 if 9 <= hour_of_day <= 17 else 0.0
         features.append(is_business_hours)
         self.feature_names.append("is_business_hours")
         
-        is_weekend = datetime.utcnow().weekday() >= 5
+        is_weekend = now.weekday() >= 5
         features.append(0.0 if is_weekend else 1.0)
         self.feature_names.append("is_weekday")
         
@@ -104,7 +105,7 @@ class AnomalyDetector:
         features.append(1.0 if agent.is_trusted else 0.0)
         self.feature_names.append("agent_trusted")
         
-        agent_active_days = (datetime.utcnow() - agent.created_at).days if agent.created_at else 0
+        agent_active_days = (now - agent.created_at).days if agent.created_at else 0
         features.append(min(agent_active_days / 365, 1.0))  # Normalize to 1 year
         self.feature_names.append("agent_maturity")
         

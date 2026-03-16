@@ -2,8 +2,9 @@
 Dashboard API Endpoints
 Aggregated data for dashboard visualization
 """
+import json
 from flask import Blueprint, request, jsonify
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import func, desc
 from models.database import SessionLocal
 from models.task import Task, TaskStatus, RiskLevel
@@ -13,6 +14,7 @@ from models.governance_rule import GovernanceRule
 from services.task_service import TaskService
 from services.agent_service import AgentService
 from services.audit_service import AuditService
+from utils.time_utils import utc_now
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -26,7 +28,7 @@ def get_dashboard_summary():
     """
     db = SessionLocal()
     try:
-        now = datetime.utcnow()
+        now = utc_now()
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_ago = now - timedelta(days=7)
         
@@ -120,7 +122,7 @@ def get_activity_timeline():
         days = int(request.args.get('days', 7))
         granularity = request.args.get('granularity', 'day')
         
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
         
         # Get tasks grouped by date
         tasks = db.query(Task).filter(Task.created_at >= start_date).all()
@@ -195,7 +197,7 @@ def get_risk_overview():
     db = SessionLocal()
     try:
         days = int(request.args.get('days', 7))
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
         
         # Get tasks in period
         tasks = db.query(Task).filter(Task.created_at >= start_date).all()
@@ -303,7 +305,7 @@ def get_governance_stats():
     db = SessionLocal()
     try:
         days = int(request.args.get('days', 7))
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
         
         # Get all rules
         rules = db.query(GovernanceRule).all()
@@ -343,6 +345,60 @@ def get_governance_stats():
                 "total_triggers": len(triggers),
                 "rules": rule_stats
             }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@dashboard_bp.route('/live-alerts', methods=['GET'])
+def get_live_alerts():
+    """Get recent high-severity alerts for live monitoring UI"""
+    db = SessionLocal()
+    try:
+        limit = int(request.args.get('limit', 20))
+        days = int(request.args.get('days', 1))
+        start_date = utc_now() - timedelta(days=days)
+
+        logs = db.query(AuditLog).filter(
+            AuditLog.timestamp >= start_date,
+            AuditLog.severity.in_(["warning", "error", "critical"])
+        ).order_by(desc(AuditLog.timestamp)).limit(limit).all()
+
+        alerts = []
+        for log in logs:
+            parsed_details = None
+            if log.details:
+                try:
+                    parsed_details = json.loads(log.details)
+                except (TypeError, json.JSONDecodeError):
+                    parsed_details = log.details
+
+            message = f"{log.action.value.replace('_', ' ')} on {log.entity_type}"
+            if isinstance(parsed_details, dict):
+                if parsed_details.get("reason"):
+                    message = str(parsed_details["reason"])
+                elif parsed_details.get("rejection_reason"):
+                    message = str(parsed_details["rejection_reason"])
+                elif parsed_details.get("error"):
+                    message = str(parsed_details["error"])
+
+            alerts.append({
+                "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "severity": log.severity,
+                "action": log.action.value,
+                "entity_type": log.entity_type,
+                "entity_id": log.entity_id,
+                "task_id": log.task_id,
+                "message": message
+            })
+
+        return jsonify({
+            "success": True,
+            "data": alerts,
+            "count": len(alerts)
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

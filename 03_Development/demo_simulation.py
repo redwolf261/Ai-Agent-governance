@@ -19,6 +19,7 @@ import os
 import time
 import random
 from datetime import datetime, timedelta
+from utils.time_utils import utc_now
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -365,7 +366,7 @@ class GovernanceDemo:
         """Generate and display compliance report"""
         print_subheader("Generating Compliance Report")
         
-        end_date = datetime.utcnow()
+        end_date = utc_now()
         start_date = end_date - timedelta(days=1)
         
         report = self.audit_service.generate_compliance_report(

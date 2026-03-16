@@ -86,6 +86,26 @@ def get_task(task_id):
         db.close()
 
 
+@tasks_bp.route('/<task_id>/decision-trace', methods=['GET'])
+def get_task_decision_trace(task_id):
+    """Get decision lineage and audit timeline for a task"""
+    db = SessionLocal()
+    try:
+        service = TaskService(db)
+        trace = service.get_task_decision_trace(task_id)
+
+        return jsonify({
+            "success": True,
+            "data": trace
+        })
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        db.close()
+
+
 @tasks_bp.route('', methods=['POST'])
 def create_task():
     """

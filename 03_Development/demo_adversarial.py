@@ -316,14 +316,20 @@ class AdversarialDemo:
         """Register a simulated malicious agent"""
         print(f"\n  {Colors.YELLOW}[!] Registering Adversarial Agent...{Colors.END}")
         
-        agent = self.agent_service.register_agent(
+        # Reuse the existing adversarial agent if the DB is already seeded
+        from models.agent import Agent as AgentModel
+        existing = self.session.query(AgentModel).filter_by(name="MaliciousBot-X").first()
+        if existing:
+            agent = existing
+        else:
+            agent = self.agent_service.register_agent(
             name="MaliciousBot-X",
             agent_type=AgentType.GENERAL.value,
             description="Adversarial testing agent simulating malicious behavior. Purpose: Testing governance system with threat scenarios.",
             capabilities=["code_execution", "file_access", "network_access", "database_access"],
             owner="Security Testing Team",
             is_trusted=False
-        )
+            )
         
         print(f"  {Colors.YELLOW}[!]{Colors.END} Agent ID: {agent.id}")
         print(f"  {Colors.YELLOW}[!]{Colors.END} Trusted: {agent.is_trusted}")

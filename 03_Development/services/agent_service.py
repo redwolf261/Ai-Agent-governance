@@ -4,7 +4,7 @@ Business logic for AI agent management
 """
 import json
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -12,6 +12,7 @@ from models.agent import Agent, AgentType, AgentStatus
 from models.task import Task, TaskStatus
 from models.audit_log import AuditAction
 from services.audit_service import AuditService
+from utils.time_utils import utc_now
 
 
 class AgentService:
@@ -307,11 +308,19 @@ class AgentService:
         if not agent:
             raise ValueError(f"Agent not found: {agent_id}")
         
-        start_date = datetime.utcnow() - timedelta(days=days)
+        now = utc_now()
+        start_date = now - timedelta(days=days)
+        baseline_start_date = start_date - timedelta(days=days)
         
         tasks = self.db.query(Task).filter(
             Task.agent_id == agent_id,
             Task.created_at >= start_date
+        ).all()
+
+        baseline_tasks = self.db.query(Task).filter(
+            Task.agent_id == agent_id,
+            Task.created_at >= baseline_start_date,
+            Task.created_at < start_date
         ).all()
         
         # Calculate metrics
@@ -333,6 +342,34 @@ class AgentService:
             sum(t.risk_score for t in tasks) / len(tasks)
             if tasks else 0
         )
+
+        # Baseline metrics from prior window of same duration
+        baseline_total = len(baseline_tasks)
+        baseline_completed = sum(1 for t in baseline_tasks if t.status == TaskStatus.COMPLETED)
+        baseline_avg_risk = (
+            sum(t.risk_score for t in baseline_tasks) / baseline_total
+            if baseline_tasks else 0
+        )
+        baseline_success_rate = (baseline_completed / max(baseline_total, 1) * 100)
+
+        current_success_rate = (completed / max(total_tasks, 1) * 100)
+
+        # Drift score compares current behavior against immediate historical baseline.
+        risk_delta = avg_risk_score - baseline_avg_risk
+        success_delta = current_success_rate - baseline_success_rate
+        volume_ratio_delta = abs(total_tasks - baseline_total) / max(baseline_total, 1)
+
+        drift_score = min(
+            1.0,
+            abs(risk_delta) + (abs(success_delta) / 100.0 * 0.5) + (min(volume_ratio_delta, 1.0) * 0.2)
+        )
+
+        if risk_delta > 0.1:
+            risk_trend = "increasing"
+        elif risk_delta < -0.1:
+            risk_trend = "decreasing"
+        else:
+            risk_trend = "stable"
         
         # Task type distribution
         type_counts = {}
@@ -353,7 +390,20 @@ class AgentService:
             "failure_rate": round(failed / max(total_tasks, 1) * 100, 2),
             "average_execution_time_ms": round(avg_execution_time, 2),
             "average_risk_score": round(avg_risk_score, 3),
-            "task_type_distribution": type_counts
+            "task_type_distribution": type_counts,
+            "behavior_baseline": {
+                "window_days": days,
+                "task_count": baseline_total,
+                "average_risk_score": round(baseline_avg_risk, 3),
+                "success_rate": round(baseline_success_rate, 2)
+            },
+            "drift": {
+                "score": round(drift_score, 3),
+                "risk_delta": round(risk_delta, 3),
+                "success_rate_delta": round(success_delta, 2),
+                "task_volume_ratio_delta": round(volume_ratio_delta, 3),
+                "risk_trend": risk_trend
+            }
         }
     
     def get_all_agent_statistics(self, days: int = 7) -> List[Dict[str, Any]]:

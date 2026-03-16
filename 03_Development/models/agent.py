@@ -4,11 +4,11 @@ Represents AI agents that perform tasks in the system
 """
 from sqlalchemy import Column, String, DateTime, Boolean, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from datetime import datetime
 import uuid
 import enum
 
 from models.database import Base
+from utils.time_utils import utc_now
 
 
 class AgentType(enum.Enum):
@@ -55,8 +55,8 @@ class Agent(Base):
     description = Column(Text, nullable=True)
     status = Column(SQLEnum(AgentStatus), default=AgentStatus.ACTIVE)
     capabilities = Column(Text, nullable=True)  # JSON string
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     last_active_at = Column(DateTime, nullable=True)
     is_trusted = Column(Boolean, default=False)
     owner = Column(String(255), nullable=True)
@@ -87,7 +87,7 @@ class Agent(Base):
     
     def update_last_active(self):
         """Update last active timestamp"""
-        self.last_active_at = datetime.utcnow()
+        self.last_active_at = utc_now()
     
     def suspend(self):
         """Suspend the agent"""

@@ -11,6 +11,7 @@ from sqlalchemy import desc, and_
 from models.audit_log import AuditLog, AuditAction, create_audit_log
 from models.task import Task
 from models.agent import Agent
+from utils.time_utils import utc_now
 
 
 class AuditService:
@@ -330,7 +331,7 @@ class AuditService:
             "user_activity": {
                 "total_logins": user_logins
             },
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": utc_now().isoformat()
         }
     
     def get_risk_summary(self, days: int = 7) -> Dict[str, Any]:
@@ -343,7 +344,7 @@ class AuditService:
         Returns:
             Dictionary with risk summary metrics
         """
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
         
         # Get high-severity events
         high_severity_logs = self.db.query(AuditLog).filter(

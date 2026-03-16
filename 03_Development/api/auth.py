@@ -2,7 +2,7 @@
 Authentication API Endpoints
 """
 from flask import Blueprint, request, jsonify
-from datetime import datetime, timedelta
+from datetime import timedelta
 import jwt
 from functools import wraps
 from models.database import SessionLocal
@@ -10,6 +10,7 @@ from models.user import User, UserRole
 from models.audit_log import AuditAction
 from services.audit_service import AuditService
 from config import config
+from utils.time_utils import utc_now
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -172,7 +173,7 @@ def login():
             'user_id': user.id,
             'username': user.username,
             'role': user.role.value,
-            'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+            'exp': utc_now() + timedelta(hours=JWT_EXPIRATION_HOURS)
         }, SECRET_KEY, algorithm="HS256")
         
         # Update last login

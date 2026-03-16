@@ -12,6 +12,7 @@ from models.task import Task, TaskStatus, RiskLevel
 from models.agent import Agent, AgentStatus
 from models.governance_rule import GovernanceRule, RuleType, RuleAction
 from models.audit_log import AuditLog, AuditAction, create_audit_log
+from utils.time_utils import utc_now
 
 
 class GovernanceEngine:
@@ -130,6 +131,7 @@ class GovernanceEngine:
             RuleType.RISK_THRESHOLD: self._evaluate_risk_threshold,
             RuleType.AGENT_TRUST_LEVEL: self._evaluate_agent_trust_level,
             RuleType.RATE_LIMIT: self._evaluate_rate_limit,
+            RuleType.PAYLOAD_SCAN: self._evaluate_payload_scan,
         }
         
         evaluator = evaluators.get(rule.rule_type)
@@ -268,7 +270,7 @@ class GovernanceEngine:
         
         # Count tasks in last hour
         from datetime import timedelta
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        one_hour_ago = utc_now() - timedelta(hours=1)
         
         recent_task_count = self.db.query(Task).filter(
             Task.agent_id == agent.id,
@@ -283,9 +285,64 @@ class GovernanceEngine:
         
         return {"triggered": False, "reason": ""}
     
+    def _evaluate_payload_scan(
+        self, condition: Dict, task: Task, agent: Agent
+    ) -> Dict[str, Any]:
+        """
+        Recursively scan every field in the task payload for dangerous terms.
+
+        Unlike _evaluate_operation_restriction (which does exact match on a single
+        field), this method flattens the entire input_data JSON tree into one
+        string and checks it against a regex blocklist — catching differently
+        structured malicious payloads regardless of which field they appear in.
+        """
+        blocklist = condition.get("blocklist", [])
+        if not blocklist:
+            return {"triggered": False, "reason": ""}
+
+        try:
+            input_data = json.loads(task.input_data or "{}")
+        except json.JSONDecodeError:
+            return {"triggered": False, "reason": ""}
+
+        # Collect every string token from the entire nested payload
+        tokens = self._flatten_payload_strings(input_data)
+        # Include task title and description so name-based evasion is caught too
+        tokens.append(task.title or "")
+        tokens.append(task.description or "")
+
+        haystack = " ".join(tokens).lower()
+
+        for term in blocklist:
+            if re.search(term.lower(), haystack):
+                return {
+                    "triggered": True,
+                    "reason": f"Dangerous payload content detected: '{term}'"
+                }
+
+        return {"triggered": False, "reason": ""}
+
+    def _flatten_payload_strings(self, obj, depth: int = 0) -> List[str]:
+        """Recursively extract every string token from a nested JSON structure."""
+        if depth > 10:  # guard against adversarially deep nesting
+            return []
+        tokens = []
+        if isinstance(obj, str):
+            tokens.append(obj)
+        elif isinstance(obj, dict):
+            for k, v in obj.items():
+                tokens.append(str(k))
+                tokens.extend(self._flatten_payload_strings(v, depth + 1))
+        elif isinstance(obj, (list, tuple)):
+            for item in obj:
+                tokens.extend(self._flatten_payload_strings(item, depth + 1))
+        elif obj is not None:
+            tokens.append(str(obj))
+        return tokens
+
     def _refresh_cache_if_needed(self):
         """Refresh rule cache if expired or empty"""
-        now = datetime.utcnow()
+        now = utc_now()
         
         if (self._cache_timestamp is None or 
             (now - self._cache_timestamp).total_seconds() > self._cache_ttl_seconds):
@@ -350,6 +407,43 @@ class GovernanceEngine:
     def create_default_rules(self):
         """Create default governance rules for new installations"""
         default_rules = [
+            {
+                "name": "Deep Payload Threat Scan",
+                "description": (
+                    "Recursively scan every field in the task payload for dangerous terms. "
+                    "Catches malicious operations regardless of which JSON key they appear in, "
+                    "closing the gap left by single-field operation restriction checks."
+                ),
+                "rule_type": RuleType.PAYLOAD_SCAN,
+                "condition": json.dumps({
+                    "blocklist": [
+                        # Destructive DB operations
+                        "drop database", "drop table", "drop schema",
+                        # Backdoors / C2
+                        "backdoor", "reverse.?shell",
+                        # Cryptojacking
+                        "cryptominer", "cryptomining", "mining.pool",
+                        # Ransomware
+                        "ransomware", "ransom.note", "delete.backups",
+                        # DDoS
+                        "botnet", "http.flood", "ddos",
+                        # Defense evasion
+                        "stop.and.delete", "disable.alert", "disable.monitor",
+                        # Exploitation
+                        "privilege.*escalat", "cve-\\d{4}-\\d+",
+                        # Exfiltration markers
+                        "stolen.data", "attacker.server", "exfiltrat",
+                        # Malicious infrastructure
+                        "malicious.image", "compromised.node",
+                        # Audit/trail suppression & unauthorized financial ops
+                        "audit_trail.*disabled", "audit.*disabled",
+                        "disable.*audit", "tamper.*log", "delete.*audit"
+                    ]
+                }),
+                "action": RuleAction.BLOCK,
+                "severity": "critical",
+                "priority": 5  # Run before all other rules
+            },
             {
                 "name": "Block Dangerous Operations",
                 "description": "Prevent execution of high-risk system operations",

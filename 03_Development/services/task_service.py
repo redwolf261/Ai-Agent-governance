@@ -10,10 +10,11 @@ from sqlalchemy import desc, func
 
 from models.task import Task, TaskStatus, TaskType, RiskLevel
 from models.agent import Agent
-from models.audit_log import AuditAction
+from models.audit_log import AuditAction, AuditLog
 from services.governance_engine import GovernanceEngine
 from services.anomaly_detector import AnomalyDetector
 from services.audit_service import AuditService
+from utils.time_utils import utc_now
 
 
 class TaskService:
@@ -313,7 +314,7 @@ class TaskService:
         
         task.status = TaskStatus.REJECTED
         task.reviewed_by = reviewer
-        task.reviewed_at = datetime.utcnow()
+        task.reviewed_at = utc_now()
         task.review_notes = reason
         
         self.audit_service.log_task_action(
@@ -329,6 +330,125 @@ class TaskService:
     def get_task(self, task_id: str) -> Optional[Task]:
         """Get a task by ID"""
         return self.db.query(Task).filter(Task.id == task_id).first()
+
+    def get_task_decision_trace(self, task_id: str) -> Dict[str, Any]:
+        """
+        Build a frontend-ready decision trace for a task.
+
+        Args:
+            task_id: ID of the task
+
+        Returns:
+            Dictionary containing task summary, rationale, and ordered timeline events
+        """
+        task = self.get_task(task_id)
+        if not task:
+            raise ValueError(f"Task not found: {task_id}")
+
+        logs = self.db.query(AuditLog).filter(
+            AuditLog.task_id == task_id
+        ).order_by(AuditLog.timestamp).all()
+
+        def _try_parse_json(raw: Any) -> Any:
+            if raw is None:
+                return None
+            if isinstance(raw, (dict, list)):
+                return raw
+            if not isinstance(raw, str):
+                return raw
+            try:
+                return json.loads(raw)
+            except (TypeError, json.JSONDecodeError):
+                return raw
+
+        timeline = []
+        for log in logs:
+            timeline.append({
+                "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "action": log.action.value,
+                "severity": log.severity,
+                "category": log.category,
+                "details": _try_parse_json(log.details),
+                "old_value": _try_parse_json(log.old_value),
+                "new_value": _try_parse_json(log.new_value)
+            })
+
+        risk_events = [
+            event for event in timeline
+            if event["action"] in [AuditAction.ANOMALY_DETECTED.value, AuditAction.RISK_ASSESSED.value]
+        ]
+
+        rule_triggers = [
+            event for event in timeline
+            if event["action"] == AuditAction.RULE_TRIGGERED.value
+        ]
+
+        latest_risk_analysis = risk_events[-1]["details"] if risk_events else None
+
+        top_risk_factors = []
+        method_scores = {}
+        explainability = {
+            "final_score": None,
+            "risk_level": None,
+            "top_risk_factors": [],
+            "method_scores": {}
+        }
+
+        if isinstance(latest_risk_analysis, dict):
+            analysis = latest_risk_analysis.get("analysis")
+            if isinstance(analysis, dict):
+                features = analysis.get("features", {})
+                if isinstance(features, dict):
+                    numeric_features = [
+                        (k, float(v))
+                        for k, v in features.items()
+                        if isinstance(v, (int, float))
+                    ]
+                    numeric_features.sort(key=lambda item: item[1], reverse=True)
+                    top_risk_factors = [
+                        {"name": key, "value": round(value, 4)}
+                        for key, value in numeric_features[:5]
+                    ]
+
+                methods = analysis.get("methods", {})
+                if isinstance(methods, dict):
+                    method_scores = {
+                        k: round(float(v), 4)
+                        for k, v in methods.items()
+                        if isinstance(v, (int, float))
+                    }
+
+                explainability["final_score"] = analysis.get("final_score")
+                explainability["risk_level"] = analysis.get("risk_level")
+
+        explainability["top_risk_factors"] = top_risk_factors
+        explainability["method_scores"] = method_scores
+
+        return {
+            "task": {
+                "id": task.id,
+                "title": task.title,
+                "task_type": task.task_type.value,
+                "status": task.status.value,
+                "risk_level": task.risk_level.value,
+                "risk_score": task.risk_score,
+                "governance_status": task.governance_status,
+                "created_at": task.created_at.isoformat() if task.created_at else None,
+                "reviewed_by": task.reviewed_by,
+                "reviewed_at": task.reviewed_at.isoformat() if task.reviewed_at else None,
+                "review_notes": task.review_notes
+            },
+            "decision": {
+                "rationale": task.decision_rationale,
+                "governance_notes": task.governance_notes,
+                "review_notes": task.review_notes,
+                "rule_trigger_count": len(rule_triggers)
+            },
+            "risk_analysis": latest_risk_analysis,
+            "explainability": explainability,
+            "timeline": timeline
+        }
     
     def get_tasks(
         self,
@@ -395,7 +515,7 @@ class TaskService:
         Returns:
             Dictionary with task statistics
         """
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
         
         tasks = self.db.query(Task).filter(Task.created_at >= start_date).all()
         
@@ -448,8 +568,8 @@ class TaskService:
         Returns:
             Dictionary with historical metrics
         """
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        one_hour_ago = utc_now() - timedelta(hours=1)
+        one_day_ago = utc_now() - timedelta(days=1)
         
         # Tasks in last hour
         recent_tasks = self.db.query(Task).filter(

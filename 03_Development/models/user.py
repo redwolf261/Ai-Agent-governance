@@ -4,12 +4,12 @@ System users who interact with the governance platform
 """
 from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy import Enum as SQLEnum
-from datetime import datetime
 import uuid
 import enum
 import bcrypt
 
 from models.database import Base
+from utils.time_utils import utc_now
 
 
 class UserRole(enum.Enum):
@@ -49,8 +49,8 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     last_login = Column(DateTime, nullable=True)
     
     # Security
@@ -88,7 +88,7 @@ class User(Base):
     
     def update_last_login(self):
         """Update last login timestamp"""
-        self.last_login = datetime.utcnow()
+        self.last_login = utc_now()
     
     def has_permission(self, required_role: UserRole) -> bool:
         """Check if user has required role or higher"""

@@ -92,6 +92,7 @@ def create_app():
                     "POST /api/tasks/<id>/fail": "Fail task",
                     "POST /api/tasks/<id>/approve": "Approve flagged task",
                     "POST /api/tasks/<id>/reject": "Reject flagged task",
+                    "GET /api/tasks/<id>/decision-trace": "Get decision lineage for a task",
                     "GET /api/tasks/flagged": "Get flagged tasks",
                     "GET /api/tasks/statistics": "Get task statistics"
                 },
@@ -118,7 +119,8 @@ def create_app():
                     "GET /api/dashboard/agent-performance": "Get agent performance",
                     "GET /api/dashboard/risk-overview": "Get risk overview",
                     "GET /api/dashboard/recent-activity": "Get recent activity",
-                    "GET /api/dashboard/governance-stats": "Get governance stats"
+                    "GET /api/dashboard/governance-stats": "Get governance stats",
+                    "GET /api/dashboard/live-alerts": "Get high-severity live alerts"
                 }
             }
         })

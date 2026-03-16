@@ -5,11 +5,11 @@ Represents tasks executed by AI agents
 from sqlalchemy import Column, String, DateTime, Text, Float, ForeignKey, Integer
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from datetime import datetime
 import uuid
 import enum
 
 from models.database import Base
+from utils.time_utils import utc_now
 
 
 class TaskStatus(enum.Enum):
@@ -87,7 +87,7 @@ class Task(Base):
     risk_score = Column(Float, default=0.0)
     
     # Timing
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     execution_time_ms = Column(Integer, nullable=True)
@@ -138,12 +138,12 @@ class Task(Base):
     def start_execution(self):
         """Mark task as started"""
         self.status = TaskStatus.RUNNING
-        self.started_at = datetime.utcnow()
+        self.started_at = utc_now()
     
     def complete_execution(self, output_data: str = None):
         """Mark task as completed"""
         self.status = TaskStatus.COMPLETED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = utc_now()
         if output_data:
             self.output_data = output_data
         if self.started_at:
@@ -153,7 +153,7 @@ class Task(Base):
     def fail_execution(self, error_message: str = None):
         """Mark task as failed"""
         self.status = TaskStatus.FAILED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = utc_now()
         if error_message:
             self.output_data = f'{{"error": "{error_message}"}}'
     
@@ -176,6 +176,6 @@ class Task(Base):
         self.status = TaskStatus.APPROVED
         self.governance_status = "approved"
         self.reviewed_by = reviewer
-        self.reviewed_at = datetime.utcnow()
+        self.reviewed_at = utc_now()
         if notes:
             self.review_notes = notes

@@ -143,6 +143,7 @@ This will populate the system with sample data and demonstrate all features.
 | GET | `/api/tasks` | List tasks |
 | POST | `/api/tasks` | Create task (with auto-evaluation) |
 | GET | `/api/tasks/<id>` | Get task details |
+| GET | `/api/tasks/<id>/decision-trace` | Get decision lineage and audit timeline |
 | POST | `/api/tasks/<id>/approve` | Approve flagged task |
 | POST | `/api/tasks/<id>/reject` | Reject flagged task |
 | GET | `/api/tasks/flagged` | Get flagged tasks |
@@ -167,6 +168,7 @@ This will populate the system with sample data and demonstrate all features.
 | GET | `/api/dashboard/summary` | Get summary stats |
 | GET | `/api/dashboard/activity-timeline` | Activity over time |
 | GET | `/api/dashboard/risk-overview` | Risk distribution |
+| GET | `/api/dashboard/live-alerts` | Get high-severity live alerts |
 
 ---
 
