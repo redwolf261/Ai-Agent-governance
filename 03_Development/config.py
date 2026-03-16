@@ -2,7 +2,8 @@
 Configuration Management for AI Agent Governance System
 """
 import os
-from dataclasses import dataclass
+import secrets
+from dataclasses import dataclass, field
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -77,8 +78,8 @@ class APIConfig:
     """API configuration settings"""
     host: str = os.getenv("API_HOST", "0.0.0.0")
     port: int = int(os.getenv("API_PORT", "5000"))
-    debug: bool = os.getenv("DEBUG", "True").lower() == "true"
-    secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    debug: bool = os.getenv("DEBUG", "False").lower() == "true"
+    secret_key: str = field(default_factory=lambda: os.getenv("SECRET_KEY") or secrets.token_urlsafe(32))
     jwt_expiration_hours: int = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 
 

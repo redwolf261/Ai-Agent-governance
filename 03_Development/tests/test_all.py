@@ -1,67 +1,64 @@
-"""
-AI Agent Governance System - Test Suite
-Unit and Integration Tests
+"""Aligned unit and integration tests for the current codebase."""
 
-Author: Rivan Shetty
-Group: CS-K GRP 3
-"""
-import pytest
 import json
-import sys
 import os
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+import sys
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
-from models.database import init_db, get_session, Base, engine
-from models.agent import Agent, AgentType, AgentStatus
-from models.task import Task, TaskStatus, RiskLevel, TaskType
-from models.governance_rule import GovernanceRule, RuleType, RuleAction
-from models.user import User, UserRole
-from services.governance_engine import GovernanceEngine
+from models.agent import Agent, AgentStatus, AgentType
+from models.audit_log import AuditAction
+from models.database import Base, engine, get_session
+from models.governance_rule import GovernanceRule, RuleAction, RuleType
+from models.task import RiskLevel, Task, TaskStatus, TaskType
+from services.agent_service import AgentService
 from services.anomaly_detector import AnomalyDetector
 from services.audit_service import AuditService
-from services.agent_service import AgentService
+from services.governance_engine import GovernanceEngine
 from services.task_service import TaskService
 
 
-# ==================== FIXTURES ====================
+@pytest.fixture(autouse=True)
+def reset_database():
+    """Reset the SQLite database before each test for deterministic runs."""
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
 
 @pytest.fixture
 def app():
-    """Create test application"""
     application = create_app()
-    application.config['TESTING'] = True
+    application.config["TESTING"] = True
     return application
 
 
 @pytest.fixture
 def client(app):
-    """Create test client"""
     return app.test_client()
 
 
 @pytest.fixture
 def session():
-    """Create test database session"""
-    Base.metadata.create_all(engine)
-    session = get_session()
-    yield session
-    session.rollback()
-    session.close()
+    db_session = get_session()
+    try:
+        yield db_session
+    finally:
+        db_session.close()
 
 
 @pytest.fixture
 def sample_agent(session):
-    """Create sample agent for testing"""
     agent = Agent(
         name="Test Agent",
         agent_type=AgentType.CODE_GENERATOR,
         description="Test agent for unit tests",
-        is_trusted=False
+        is_trusted=False,
     )
     session.add(agent)
     session.commit()
@@ -70,13 +67,12 @@ def sample_agent(session):
 
 @pytest.fixture
 def sample_task(session, sample_agent):
-    """Create sample task for testing"""
     task = Task(
         agent_id=sample_agent.id,
         task_type=TaskType.CODE_GENERATION,
         title="Test Task",
         description="Test task for unit tests",
-        input_data={"test": True}
+        input_data=json.dumps({"test": True}),
     )
     session.add(task)
     session.commit()
@@ -85,461 +81,389 @@ def sample_task(session, sample_agent):
 
 @pytest.fixture
 def governance_engine(session):
-    """Create governance engine instance"""
     return GovernanceEngine(session)
 
 
 @pytest.fixture
-def anomaly_detector():
-    """Create anomaly detector instance"""
-    detector = AnomalyDetector()
-    detector.train_models(n_samples=100)  # Train with minimal samples
+def anomaly_detector(tmp_path):
+    detector = AnomalyDetector(model_path=str(tmp_path))
+    training_data = detector.generate_synthetic_training_data(100)
+    detector.train_models(training_data, contamination=0.1)
     return detector
 
 
-@pytest.fixture
-def audit_service(session):
-    """Create audit service instance"""
-    return AuditService(session)
-
-
-# ==================== AGENT MODEL TESTS ====================
-
 class TestAgentModel:
-    """Tests for Agent model"""
-    
     def test_agent_creation(self, session):
-        """Test creating a new agent"""
         agent = Agent(
             name="New Agent",
             agent_type=AgentType.CODE_REVIEWER,
-            description="A code reviewing agent"
+            description="A code reviewing agent",
         )
         session.add(agent)
         session.commit()
-        
+
         assert agent.id is not None
         assert agent.name == "New Agent"
         assert agent.agent_type == AgentType.CODE_REVIEWER
         assert agent.status == AgentStatus.ACTIVE
-        assert agent.trust_level == 0.5
-    
-    def test_agent_update_activity(self, session, sample_agent):
-        """Test updating agent activity"""
-        old_active = sample_agent.last_active_at
-        sample_agent.update_activity()
+        assert agent.is_trusted is False
+
+    def test_agent_update_last_active(self, session, sample_agent):
+        sample_agent.update_last_active()
         session.commit()
-        
-        assert sample_agent.last_active_at > old_active
-    
-    def test_agent_trust_adjustment(self, session, sample_agent):
-        """Test adjusting agent trust level"""
-        initial_trust = sample_agent.trust_level
-        
-        sample_agent.adjust_trust(0.1)
+
+        assert sample_agent.last_active_at is not None
+
+    def test_agent_suspend_and_activate(self, session, sample_agent):
+        sample_agent.suspend()
         session.commit()
-        assert sample_agent.trust_level == initial_trust + 0.1
-        
-        sample_agent.adjust_trust(-0.05)
-        session.commit()
-        assert sample_agent.trust_level == initial_trust + 0.05
-        
-    def test_agent_trust_bounds(self, session, sample_agent):
-        """Test that trust level stays within bounds"""
-        sample_agent.adjust_trust(100)
-        assert sample_agent.trust_level == 1.0
-        
-        sample_agent.adjust_trust(-200)
-        assert sample_agent.trust_level == 0.0
-    
-    def test_agent_suspension(self, session, sample_agent):
-        """Test agent suspension"""
-        sample_agent.status = AgentStatus.SUSPENDED
-        sample_agent.suspended_reason = "Policy violation"
-        session.commit()
-        
         assert sample_agent.status == AgentStatus.SUSPENDED
-        assert sample_agent.suspended_at is not None
-    
+
+        sample_agent.activate()
+        session.commit()
+        assert sample_agent.status == AgentStatus.ACTIVE
+
     def test_agent_to_dict(self, sample_agent):
-        """Test agent serialization"""
         data = sample_agent.to_dict()
-        
-        assert 'id' in data
-        assert 'name' in data
-        assert data['name'] == "Test Agent"
-        assert 'agent_type' in data
 
+        assert data["name"] == "Test Agent"
+        assert data["agent_type"] == "code_generator"
+        assert data["is_trusted"] is False
 
-# ==================== TASK MODEL TESTS ====================
 
 class TestTaskModel:
-    """Tests for Task model"""
-    
     def test_task_creation(self, session, sample_agent):
-        """Test creating a new task"""
         task = Task(
             agent_id=sample_agent.id,
             task_type=TaskType.DATA_ANALYSIS,
             title="Analysis Task",
-            description="Analyze some data"
+            description="Analyze some data",
         )
         session.add(task)
         session.commit()
-        
+
         assert task.id is not None
         assert task.status == TaskStatus.PENDING
         assert task.risk_score == 0.0
-    
-    def test_task_start(self, session, sample_task):
-        """Test starting a task"""
-        sample_task.start()
+        assert task.governance_status == "pending"
+
+    def test_task_start_execution(self, session, sample_task):
+        sample_task.start_execution()
         session.commit()
-        
+
         assert sample_task.status == TaskStatus.RUNNING
         assert sample_task.started_at is not None
-    
-    def test_task_complete(self, session, sample_task):
-        """Test completing a task"""
-        sample_task.start()
-        sample_task.complete({"result": "success"})
+
+    def test_task_complete_execution(self, session, sample_task):
+        sample_task.start_execution()
+        sample_task.complete_execution(json.dumps({"result": "success"}))
         session.commit()
-        
+
         assert sample_task.status == TaskStatus.COMPLETED
         assert sample_task.completed_at is not None
-        assert sample_task.output_data == {"result": "success"}
-    
-    def test_task_fail(self, session, sample_task):
-        """Test failing a task"""
-        sample_task.start()
-        sample_task.fail("Something went wrong")
+        assert json.loads(sample_task.output_data)["result"] == "success"
+
+    def test_task_fail_execution(self, session, sample_task):
+        sample_task.start_execution()
+        sample_task.fail_execution("Something went wrong")
         session.commit()
-        
+
         assert sample_task.status == TaskStatus.FAILED
-        assert "Something went wrong" in sample_task.error_message
-    
-    def test_task_flag(self, session, sample_task):
-        """Test flagging a task"""
-        sample_task.flag("High risk operation detected")
+        assert "Something went wrong" in sample_task.output_data
+
+    def test_task_flag_for_review(self, session, sample_task):
+        sample_task.flag_for_review("High risk operation detected")
         session.commit()
-        
+
         assert sample_task.status == TaskStatus.FLAGGED
-        assert sample_task.requires_approval == True
-    
-    def test_task_block(self, session, sample_task):
-        """Test blocking a task"""
-        sample_task.block("Violation: Restricted operation")
+        assert sample_task.governance_status == "flagged"
+        assert "High risk operation detected" in sample_task.governance_notes
+
+    def test_task_block_execution(self, session, sample_task):
+        sample_task.block_execution("Violation: Restricted operation")
         session.commit()
-        
+
         assert sample_task.status == TaskStatus.BLOCKED
-        assert sample_task.is_blocked == True
-    
-    def test_task_risk_level_calculation(self, session, sample_task):
-        """Test risk level classification"""
-        sample_task.risk_score = 0.2
-        assert sample_task.get_risk_level() == RiskLevel.LOW
-        
-        sample_task.risk_score = 0.5
-        assert sample_task.get_risk_level() == RiskLevel.MEDIUM
-        
-        sample_task.risk_score = 0.75
-        assert sample_task.get_risk_level() == RiskLevel.HIGH
-        
-        sample_task.risk_score = 0.95
-        assert sample_task.get_risk_level() == RiskLevel.CRITICAL
+        assert sample_task.governance_status == "blocked"
 
+    def test_task_approve(self, session, sample_task):
+        sample_task.flag_for_review("Needs review")
+        sample_task.approve("reviewer-1", "Approved after review")
+        session.commit()
 
-# ==================== GOVERNANCE ENGINE TESTS ====================
+        assert sample_task.status == TaskStatus.APPROVED
+        assert sample_task.reviewed_by == "reviewer-1"
+
 
 class TestGovernanceEngine:
-    """Tests for Governance Engine"""
-    
     def test_create_default_rules(self, session, governance_engine):
-        """Test creating default governance rules"""
+        rules = governance_engine.create_default_rules()
+        assert len(rules) >= 5
+
+    def test_evaluate_low_risk_task(self, session, governance_engine, sample_task, sample_agent):
         governance_engine.create_default_rules()
-        
-        rules = session.query(GovernanceRule).all()
-        assert len(rules) > 0
-    
-    def test_evaluate_low_risk_task(self, session, governance_engine, sample_task):
-        """Test evaluation of low-risk task"""
         sample_task.task_type = TaskType.DOCUMENTATION
-        sample_task.estimated_duration = 60
+        sample_task.input_data = json.dumps({"estimated_execution_time": 60})
+        sample_task.risk_score = 0.2
         session.commit()
-        
-        result = governance_engine.evaluate_task(sample_task)
-        
-        assert 'risk_score' in result
-        assert 'action' in result
-        assert result['action'] in ['allow', 'flag', 'block']
-    
-    def test_evaluate_high_risk_task(self, session, governance_engine, sample_task):
-        """Test evaluation of high-risk task"""
-        sample_task.task_type = TaskType.SYSTEM_MODIFICATION
-        sample_task.input_data = {
-            "operation": "delete",
-            "target": "production_database"
-        }
-        sample_task.estimated_duration = 7200
-        session.commit()
-        
+
+        status, triggered_rules = governance_engine.evaluate_task(sample_task, sample_agent)
+
+        assert status in ["approved", "flagged", "blocked", "pending_approval", "escalated"]
+        assert isinstance(triggered_rules, list)
+
+    def test_evaluate_high_risk_task(self, session, governance_engine, sample_task, sample_agent):
         governance_engine.create_default_rules()
-        result = governance_engine.evaluate_task(sample_task)
-        
-        # High risk tasks should be flagged or blocked
-        assert result['risk_score'] > 0.5 or result['action'] in ['flag', 'block']
-    
-    def test_rule_priority(self, session, governance_engine):
-        """Test that rules are evaluated by priority"""
-        # Create rules with different priorities
-        rule_low = GovernanceRule(
-            name="Low Priority",
-            rule_type=RuleType.RISK_THRESHOLD,
-            condition={"threshold": 0.5},
-            action=RuleAction.LOG_ONLY,
-            priority=50
+        sample_task.task_type = TaskType.SYSTEM_COMMAND
+        sample_task.input_data = json.dumps(
+            {
+                "operation": "credential_access",
+                "estimated_execution_time": 7200,
+            }
         )
-        rule_high = GovernanceRule(
-            name="High Priority",
-            rule_type=RuleType.RISK_THRESHOLD,
-            condition={"threshold": 0.7},
-            action=RuleAction.BLOCK,
-            priority=200
-        )
-        session.add_all([rule_low, rule_high])
+        sample_task.description = "Access production password store"
+        sample_task.risk_score = 0.95
         session.commit()
-        
-        rules = governance_engine.get_active_rules()
-        
-        # Should be sorted by priority descending
-        assert rules[0].priority >= rules[-1].priority
 
+        status, triggered_rules = governance_engine.evaluate_task(sample_task, sample_agent)
 
-# ==================== ANOMALY DETECTOR TESTS ====================
+        assert status in ["blocked", "flagged"]
+        assert len(triggered_rules) > 0
+
+    def test_rule_priority_orders_lowest_first(self, session, governance_engine, sample_task, sample_agent):
+        session.add_all(
+            [
+                GovernanceRule(
+                    name="Priority 50",
+                    rule_type=RuleType.RISK_THRESHOLD,
+                    condition=json.dumps({"threshold": 0.5}),
+                    action=RuleAction.FLAG,
+                    priority=50,
+                ),
+                GovernanceRule(
+                    name="Priority 5",
+                    rule_type=RuleType.RISK_THRESHOLD,
+                    condition=json.dumps({"threshold": 0.9}),
+                    action=RuleAction.BLOCK,
+                    priority=5,
+                ),
+            ]
+        )
+        session.commit()
+
+        rules = governance_engine._get_applicable_rules(sample_task, sample_agent)
+        assert rules[0].priority <= rules[-1].priority
+
 
 class TestAnomalyDetector:
-    """Tests for ML Anomaly Detection"""
-    
-    def test_training(self):
-        """Test model training"""
-        detector = AnomalyDetector()
-        detector.train_models(n_samples=100)
-        
+    def test_training(self, tmp_path):
+        detector = AnomalyDetector(model_path=str(tmp_path))
+        training_data = detector.generate_synthetic_training_data(50)
+        detector.train_models(training_data, contamination=0.1)
+
         assert detector.isolation_forest is not None
         assert detector.one_class_svm is not None
-    
-    def test_feature_extraction(self, anomaly_detector, sample_task):
-        """Test feature extraction from task"""
-        features = anomaly_detector.extract_features(sample_task)
-        
+        assert detector.scaler is not None
+
+    def test_feature_extraction(self, anomaly_detector, sample_task, sample_agent):
+        features = anomaly_detector.extract_features(sample_task, sample_agent)
+
         assert features is not None
-        assert len(features) == 10  # 10 features expected
-    
-    def test_normal_task_detection(self, session, anomaly_detector, sample_agent):
-        """Test detection of normal task"""
-        task = Task(
-            agent_id=sample_agent.id,
-            task_type=TaskType.DOCUMENTATION,
-            title="Normal Task",
-            description="Just a regular task",
-            estimated_duration=300
-        )
-        session.add(task)
-        session.commit()
-        
-        result = anomaly_detector.detect(task)
-        
-        assert 'is_anomaly' in result
-        assert 'combined_score' in result
-        assert 0 <= result['combined_score'] <= 1
-    
-    def test_anomalous_task_detection(self, session, anomaly_detector, sample_agent):
-        """Test detection of anomalous task"""
-        # Create task with unusual characteristics
-        task = Task(
-            agent_id=sample_agent.id,
-            task_type=TaskType.SYSTEM_MODIFICATION,
-            title="X" * 100,  # Unusual title length
-            description="Delete everything" * 50,  # Unusual description
-            estimated_duration=99999,  # Unusual duration
-            input_data={"delete": True, "admin": True, "override": True}
-        )
-        session.add(task)
-        session.commit()
-        
-        result = anomaly_detector.detect(task)
-        
-        # Should have higher anomaly score than normal task
-        assert result['combined_score'] >= 0
+        assert features.shape == (1, 10)
 
+    def test_risk_score_output(self, anomaly_detector, sample_task, sample_agent):
+        score, level, analysis = anomaly_detector.calculate_risk_score(sample_task, sample_agent)
 
-# ==================== API ENDPOINT TESTS ====================
+        assert 0 <= score <= 1
+        assert level in [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL]
+        assert "final_score" in analysis
+
 
 class TestAPIEndpoints:
-    """Integration tests for API endpoints"""
-    
     def test_health_check(self, client):
-        """Test health check endpoint"""
-        response = client.get('/health')
+        response = client.get("/health")
         data = json.loads(response.data)
-        
+
         assert response.status_code == 200
-        assert data['status'] == 'healthy'
-    
+        assert data["status"] == "healthy"
+
     def test_api_docs(self, client):
-        """Test API documentation endpoint"""
-        response = client.get('/api')
+        response = client.get("/api")
         data = json.loads(response.data)
-        
+
         assert response.status_code == 200
-        assert 'endpoints' in data
-    
-    def test_list_agents(self, client):
-        """Test listing agents"""
-        response = client.get('/api/agents')
-        data = json.loads(response.data)
-        
-        assert response.status_code == 200
-        assert 'success' in data
-    
-    def test_register_agent(self, client):
-        """Test registering a new agent"""
-        response = client.post('/api/agents',
-            data=json.dumps({
-                "name": "API Test Agent",
-                "agent_type": "code_generator",
-                "description": "Created via API test"
-            }),
-            content_type='application/json'
+        assert "endpoints" in data
+
+    def test_register_agent_and_list_agents(self, client):
+        create_response = client.post(
+            "/api/agents",
+            data=json.dumps(
+                {
+                    "name": "API Test Agent",
+                    "agent_type": "code_generator",
+                    "description": "Created via API test",
+                }
+            ),
+            content_type="application/json",
         )
-        data = json.loads(response.data)
-        
-        assert response.status_code == 200
-        assert data['success'] == True
-    
-    def test_list_tasks(self, client):
-        """Test listing tasks"""
-        response = client.get('/api/tasks')
-        data = json.loads(response.data)
-        
-        assert response.status_code == 200
-        assert 'success' in data
-    
-    def test_list_rules(self, client):
-        """Test listing governance rules"""
-        response = client.get('/api/governance/rules')
-        data = json.loads(response.data)
-        
-        assert response.status_code == 200
-        assert 'success' in data
-    
-    def test_init_default_rules(self, client):
-        """Test initializing default rules"""
-        response = client.post('/api/governance/init-defaults')
-        data = json.loads(response.data)
-        
-        assert response.status_code == 200
-        assert data['success'] == True
-    
+        create_data = json.loads(create_response.data)
+
+        list_response = client.get("/api/agents")
+        list_data = json.loads(list_response.data)
+
+        assert create_response.status_code == 201
+        assert create_data["success"] is True
+        assert list_response.status_code == 200
+        assert list_data["count"] >= 1
+
+    def test_create_task_and_list_tasks(self, client):
+        agent_response = client.post(
+            "/api/agents",
+            data=json.dumps(
+                {
+                    "name": "Task API Agent",
+                    "agent_type": "documentation",
+                    "description": "Agent for task API test",
+                }
+            ),
+            content_type="application/json",
+        )
+        agent_id = json.loads(agent_response.data)["data"]["id"]
+
+        task_response = client.post(
+            "/api/tasks",
+            data=json.dumps(
+                {
+                    "agent_id": agent_id,
+                    "task_type": "documentation",
+                    "title": "API Test Task",
+                    "description": "Created through API",
+                    "input_data": {"estimated_execution_time": 60},
+                }
+            ),
+            content_type="application/json",
+        )
+        task_data = json.loads(task_response.data)
+
+        list_response = client.get("/api/tasks")
+        list_data = json.loads(list_response.data)
+
+        assert task_response.status_code == 201
+        assert task_data["success"] is True
+        assert "evaluation" in task_data
+        assert list_response.status_code == 200
+        assert list_data["count"] >= 1
+
+    def test_list_rules_and_init_defaults(self, client):
+        init_response = client.post("/api/governance/init-defaults")
+        init_data = json.loads(init_response.data)
+        list_response = client.get("/api/governance/rules")
+        list_data = json.loads(list_response.data)
+
+        assert init_response.status_code == 200
+        assert init_data["success"] is True
+        assert list_response.status_code == 200
+        assert list_data["count"] >= 5
+
     def test_dashboard_summary(self, client):
-        """Test dashboard summary endpoint"""
-        response = client.get('/api/dashboard/summary')
+        response = client.get("/api/dashboard/summary")
         data = json.loads(response.data)
-        
+
         assert response.status_code == 200
-        assert 'success' in data
-    
+        assert data["success"] is True
+        assert "agents" in data["data"]
+
     def test_audit_logs(self, client):
-        """Test audit logs endpoint"""
-        response = client.get('/api/audit/logs')
+        response = client.get("/api/audit/logs")
         data = json.loads(response.data)
-        
+
         assert response.status_code == 200
-        assert 'success' in data
+        assert data["success"] is True
 
-
-# ==================== SERVICE TESTS ====================
 
 class TestAgentService:
-    """Tests for Agent Service"""
-    
     def test_register_agent(self, session):
-        """Test agent registration via service"""
         service = AgentService(session)
-        
+
         agent = service.register_agent(
             name="Service Test Agent",
             agent_type="monitoring",
             description="Test agent",
-            capabilities=["log_analysis"]
+            capabilities=["log_analysis"],
         )
-        
+
         assert agent is not None
         assert agent.name == "Service Test Agent"
-    
+
     def test_get_agent_statistics(self, session, sample_agent, sample_task):
-        """Test getting agent statistics"""
         service = AgentService(session)
-        
         stats = service.get_agent_statistics(sample_agent.id)
-        
-        assert 'total_tasks' in stats
-        assert 'status_breakdown' in stats
+
+        assert "total_tasks" in stats
+        assert "task_type_distribution" in stats
 
 
 class TestTaskService:
-    """Tests for Task Service"""
-    
     def test_create_task(self, session, sample_agent):
-        """Test task creation via service"""
         service = TaskService(session)
-        
-        result = service.create_task(
+
+        task, evaluation = service.create_task(
             agent_id=sample_agent.id,
             task_type="documentation",
             title="Service Test Task",
-            description="Test task"
+            description="Test task",
         )
-        
-        assert 'task' in result
-        assert 'evaluation' in result
+
+        assert task.title == "Service Test Task"
+        assert "risk_assessment" in evaluation
+        assert "governance" in evaluation
+
+    def test_reject_flagged_task(self, session, sample_agent):
+        service = TaskService(session)
+        task, _ = service.create_task(
+            agent_id=sample_agent.id,
+            task_type="documentation",
+            title="Reject Me",
+            description="Needs review",
+        )
+        task.flag_for_review("Manual review required")
+        session.commit()
+
+        rejected = service.reject_task(task.id, reviewer="manager-1", reason="Rejected for policy reasons")
+        assert rejected.status == TaskStatus.REJECTED
 
 
 class TestAuditService:
-    """Tests for Audit Service"""
-    
     def test_log_creation(self, session):
-        """Test audit log creation"""
         service = AuditService(session)
-        
-        log = service.log_task_created(
-            task_id="test-123",
-            agent_id="agent-456",
-            task_type="code_generation",
-            title="Test Task"
+
+        log = service.log_action(
+            action=AuditAction.SYSTEM_ERROR,
+            entity_type="system",
+            entity_id="system-1",
+            details={"message": "Test error"},
+            severity="error",
         )
-        
+
         assert log is not None
-        assert log.entity_type == "task"
-    
+        assert log.entity_type == "system"
+        assert log.severity == "error"
+
     def test_query_logs(self, session):
-        """Test querying audit logs"""
         service = AuditService(session)
-        
-        # Create some logs first
-        service.log_task_created(
-            task_id="test-1",
-            agent_id="agent-1",
-            task_type="test",
-            title="Test 1"
+        service.log_action(
+            action=AuditAction.SYSTEM_ERROR,
+            entity_type="system",
+            entity_id="system-1",
+            details={"message": "Test error"},
+            severity="error",
         )
-        
-        logs = service.query_logs(limit=10)
-        
+
+        logs = service.get_audit_logs(limit=10)
+
         assert isinstance(logs, list)
+        assert len(logs) == 1
 
-
-# ==================== RUN TESTS ====================
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

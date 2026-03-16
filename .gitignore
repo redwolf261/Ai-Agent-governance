@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+env/
+
+03_Development/ai_governance.db
