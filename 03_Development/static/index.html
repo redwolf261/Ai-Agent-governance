@@ -259,6 +259,48 @@
             padding: 10px 12px;
         }
 
+        .chat-shell {
+            background: #f7fbfc;
+            border: 1px solid #d8e5ea;
+            border-radius: var(--radius-md);
+            padding: 12px;
+            height: 440px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-bubble {
+            max-width: 85%;
+            border-radius: 12px;
+            padding: 10px 12px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            box-shadow: 0 2px 10px rgba(12, 31, 44, 0.08);
+        }
+
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: #0f766e;
+            color: #ffffff;
+        }
+
+        .chat-bubble.assistant {
+            align-self: flex-start;
+            background: #ffffff;
+            border: 1px solid #d3e2e8;
+            color: var(--ink-strong);
+        }
+
+        .chat-bubble.system {
+            align-self: center;
+            background: #e2f3f1;
+            border: 1px solid #b8e3dd;
+            color: #0f5f58;
+            font-size: 13px;
+        }
+
         .trace-event.warning {
             border-left-color: var(--warning);
         }
@@ -403,6 +445,11 @@
             <li class="nav-item">
                 <a class="nav-link" href="#" data-section="trace" onclick="showSection('trace')">
                     <i class="bi bi-diagram-3"></i> Decision Trace
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="chat" onclick="showSection('chat')">
+                    <i class="bi bi-chat-dots"></i> AI Chat
                 </a>
             </li>
             <li class="nav-item">
@@ -601,6 +648,70 @@
                             <div id="trace-timeline" class="trace-timeline">
                                 <div class="trace-meta">No events loaded.</div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Chat Section -->
+        <section id="section-chat" style="display: none;">
+            <div class="section-header">
+                <div>
+                    <div class="page-kicker">Ollama Integration</div>
+                    <h4><i class="bi bi-chat-dots me-2"></i>AI Governance Chat</h4>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadChatStatus()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="resetChatSession()">
+                        <i class="bi bi-trash3"></i> New Session
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-cpu me-2"></i>Model Controls</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Ollama Status</label>
+                            <div id="chat-status" class="trace-meta">Checking...</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Model</label>
+                            <select id="chat-model" class="form-select"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Risk Threshold (0.0 - 1.0)</label>
+                            <input type="number" id="chat-risk-threshold" class="form-control" min="0" max="1" step="0.05" value="0.75">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">System Prompt (optional)</label>
+                            <textarea id="chat-system-prompt" class="form-control" rows="4" placeholder="You are a governance assistant. Explain risk and policy implications clearly."></textarea>
+                        </div>
+                        <div class="trace-card">
+                            <div class="trace-meta"><strong>Session:</strong> <span id="chat-session-id">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="chart-card">
+                        <h5><i class="bi bi-robot me-2"></i>Conversation</h5>
+                        <div id="chat-shell" class="chat-shell">
+                            <div class="chat-bubble system">Ask your question and the response will come through the local Ollama model with audit logging.</div>
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="form-label">Message</label>
+                            <textarea id="chat-message" class="form-control" rows="3" placeholder="Example: evaluate the governance risk of deploying directly to production with no review"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button id="chat-send-btn" class="btn btn-primary" onclick="sendChatMessage()">
+                                <i class="bi bi-send"></i> Send
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -882,12 +993,18 @@
         let riskChart = null;
         let liveRefreshTimer = null;
         let latestActivityId = null;
+        let chatSessionId = null;
+        let chatSuspendTimer = null;
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboard();
             loadDecisionTraceTasks();
             startLiveRefresh();
+
+            chatSessionId = localStorage.getItem('governance_chat_session') || crypto.randomUUID();
+            localStorage.setItem('governance_chat_session', chatSessionId);
+            document.getElementById('chat-session-id').textContent = chatSessionId;
             
             // Set default date range for reports
             const today = new Date();
@@ -991,11 +1108,161 @@
             switch(section) {
                 case 'dashboard': loadDashboard(); break;
                 case 'trace': loadDecisionTraceSection(); break;
+                case 'chat': loadChatStatus(); break;
                 case 'agents': loadAgents(); break;
                 case 'tasks': loadTasks(); break;
                 case 'governance': loadRules(); break;
                 case 'audit': loadAuditLogs(); break;
             }
+        }
+
+        async function loadChatStatus() {
+            const statusHost = document.getElementById('chat-status');
+            const modelSelect = document.getElementById('chat-model');
+            const thresholdInput = document.getElementById('chat-risk-threshold');
+
+            statusHost.textContent = 'Checking Ollama...';
+            try {
+                const res = await fetch(API_BASE + '/llama/status');
+                const data = await res.json();
+
+                if (!data.success || !data.data.available) {
+                    statusHost.textContent = 'Ollama not available. Start with: ollama serve';
+                    modelSelect.innerHTML = '<option value="">No model available</option>';
+                    return;
+                }
+
+                const models = data.data.models || [];
+                statusHost.textContent = 'Connected. Models found: ' + models.length;
+                if (typeof data.data.default_risk_threshold === 'number') {
+                    thresholdInput.value = data.data.default_risk_threshold.toFixed(2);
+                }
+
+                modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+
+                if (models.includes('llama3')) {
+                    modelSelect.value = 'llama3';
+                } else if (data.data.recommended_model) {
+                    modelSelect.value = data.data.recommended_model;
+                }
+            } catch (error) {
+                console.error('Error loading chat status:', error);
+                statusHost.textContent = 'Error checking Ollama status.';
+            }
+        }
+
+        function appendChatBubble(role, message) {
+            const shell = document.getElementById('chat-shell');
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${role}`;
+            bubble.textContent = message;
+            shell.appendChild(bubble);
+            shell.scrollTop = shell.scrollHeight;
+        }
+
+        function setChatInputEnabled(enabled) {
+            document.getElementById('chat-message').disabled = !enabled;
+            document.getElementById('chat-send-btn').disabled = !enabled;
+        }
+
+        function clearChatSuspensionState() {
+            if (chatSuspendTimer) {
+                clearInterval(chatSuspendTimer);
+                chatSuspendTimer = null;
+            }
+
+            setChatInputEnabled(true);
+            document.getElementById('chat-send-btn').innerHTML = '<i class="bi bi-send"></i> Send';
+        }
+
+        function beginChatSuspension(remainingSeconds) {
+            const statusHost = document.getElementById('chat-status');
+            const sendBtn = document.getElementById('chat-send-btn');
+
+            if (!remainingSeconds || remainingSeconds <= 0) {
+                clearChatSuspensionState();
+                return;
+            }
+
+            if (chatSuspendTimer) {
+                clearInterval(chatSuspendTimer);
+            }
+
+            let secondsLeft = remainingSeconds;
+            setChatInputEnabled(false);
+
+            const tick = () => {
+                statusHost.textContent = `Risk chat detected. Chat suspended for ${secondsLeft}s.`;
+                sendBtn.innerHTML = `<i class="bi bi-shield-exclamation"></i> Suspended (${secondsLeft}s)`;
+
+                if (secondsLeft <= 0) {
+                    clearChatSuspensionState();
+                    statusHost.textContent = 'Suspension ended. You can send messages again.';
+                    appendChatBubble('system', 'Suspension ended. Chat is active again.');
+                    return;
+                }
+
+                secondsLeft -= 1;
+            };
+
+            tick();
+            chatSuspendTimer = setInterval(tick, 1000);
+        }
+
+        async function sendChatMessage() {
+            const messageInput = document.getElementById('chat-message');
+            const systemPrompt = document.getElementById('chat-system-prompt').value;
+            const model = document.getElementById('chat-model').value || 'llama3';
+            const riskThreshold = parseFloat(document.getElementById('chat-risk-threshold').value || '0.75');
+            const message = messageInput.value.trim();
+
+            if (!message) {
+                return;
+            }
+
+            appendChatBubble('user', message);
+            messageInput.value = '';
+
+            try {
+                const res = await fetch(API_BASE + '/llama/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message,
+                        model,
+                        risk_threshold: Number.isFinite(riskThreshold) ? riskThreshold : 0.75,
+                        system_prompt: systemPrompt || undefined,
+                        session_id: chatSessionId
+                    })
+                });
+
+                const data = await res.json();
+                if (res.status === 429 && data && data.data && data.data.remaining_seconds) {
+                    appendChatBubble('system', data.error || 'Risk chat detected. Chat suspended for 5 minutes.');
+                    beginChatSuspension(data.data.remaining_seconds);
+                    return;
+                }
+
+                if (!data.success) {
+                    appendChatBubble('system', 'Chat failed: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
+                appendChatBubble('assistant', data.data.response || '(No response returned)');
+            } catch (error) {
+                console.error('Error sending chat message:', error);
+                appendChatBubble('system', 'Network error while calling chat endpoint.');
+            }
+        }
+
+        function resetChatSession() {
+            clearChatSuspensionState();
+            chatSessionId = crypto.randomUUID();
+            localStorage.setItem('governance_chat_session', chatSessionId);
+            document.getElementById('chat-session-id').textContent = chatSessionId;
+
+            const shell = document.getElementById('chat-shell');
+            shell.innerHTML = '<div class="chat-bubble system">New session started. Previous context has been reset.</div>';
         }
 
         async function loadDecisionTraceSection() {

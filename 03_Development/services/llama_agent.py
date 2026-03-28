@@ -34,9 +34,9 @@ class LlamaModel(Enum):
 class LlamaConfig:
     """Configuration for Llama integration"""
     base_url: str = "http://localhost:11434"
-    model: str = "llama3.2:latest"
+    model: str = "llama3"
     temperature: float = 0.7
-    max_tokens: int = 512
+    max_tokens: int = 1024
     timeout: int = 120  # Increased timeout for slower models
 
 

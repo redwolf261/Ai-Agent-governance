@@ -121,6 +121,10 @@ def create_app():
                     "GET /api/dashboard/recent-activity": "Get recent activity",
                     "GET /api/dashboard/governance-stats": "Get governance stats",
                     "GET /api/dashboard/live-alerts": "Get high-severity live alerts"
+                },
+                "llama": {
+                    "GET /api/llama/status": "Check Ollama status and available models",
+                    "POST /api/llama/chat": "Chat with Ollama-backed Llama model"
                 }
             }
         })

@@ -8,6 +8,7 @@ from api.governance import governance_bp
 from api.audit import audit_bp
 from api.dashboard import dashboard_bp
 from api.auth import auth_bp
+from api.llama import llama_bp
 
 
 def register_routes(app: Flask):
@@ -24,5 +25,6 @@ def register_routes(app: Flask):
     app.register_blueprint(governance_bp, url_prefix='/api/governance')
     app.register_blueprint(audit_bp, url_prefix='/api/audit')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    app.register_blueprint(llama_bp, url_prefix='/api/llama')
     
     print("✅ API routes registered")
